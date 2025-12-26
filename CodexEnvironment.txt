@@ -94,11 +94,10 @@ echo "==> Installing ESP8266 core"
 retry 5 5 arduino-cli core install esp8266:esp8266
 
 echo "==> Installing libraries"
-retry 5 5 arduino-cli lib install "Adafruit GFX Library"
 retry 5 5 arduino-cli lib install "ArduinoJson"
-retry 5 5 arduino-cli lib install "Adafruit SH110X"
-retry 5 5 arduino-cli lib install "SimpleRotary"
-retry 5 5 arduino-cli lib install "PubSubClient"
+retry 5 5 arduino-cli lib install "MD_Parola"
+retry 5 5 arduino-cli lib install "MD_MAX72XX"
+retry 5 5 arduino-cli lib install "BMP280_DEV"
 
 echo "✅ Setup complete. Compile with:"
-echo "   arduino-cli compile --fqbn esp8266:esp8266:nodemcuv2 max72LedNodeMCU_Scroll_Working_v10.9.10.ino"
+echo "   arduino-cli compile --fqbn esp8266:esp8266:nodemcuv2 max72LedNodeMCU_Scroll_Working_v10.9.10/max72LedNodeMCU_Scroll_Working_v10.9.10.ino"
