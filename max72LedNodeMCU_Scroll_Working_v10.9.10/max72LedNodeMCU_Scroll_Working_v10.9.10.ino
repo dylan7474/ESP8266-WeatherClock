@@ -144,9 +144,6 @@ int dst = 0;  //dst = 0 for GMT , dst = 1 for bst
 String nowTime;
 String nowTimeShort;
 String oldNowTime = "";
-String dstMonth;  //This is to be used by the auto clock change routine
-int dstDate;
-int dstYear;
 
 String StoredWeatherMainData;
 String StoredWeatherDescription;
@@ -339,6 +336,65 @@ void connectWifi() {
   Serial.println("\nCONNECTED");
 }
 
+int CalculateDstForUtc(time_t nowUtc) {
+  tm timeinfo;
+  gmtime_r(&nowUtc, &timeinfo);
+  int year = timeinfo.tm_year + 1900;
+  int month = timeinfo.tm_mon + 1;
+  int day = timeinfo.tm_mday;
+  int hour = timeinfo.tm_hour;
+
+  if (year < 2021 || year > 2040) {
+    return dst;
+  }
+
+  int marDay = mar[year - 2021];
+  int octDay = oct[year - 2021];
+
+  if (month < 3 || month > 10) {
+    return 0;
+  }
+
+  if (month > 3 && month < 10) {
+    return 1;
+  }
+
+  if (month == 3) {
+    if (day < marDay) {
+      return 0;
+    }
+    if (day > marDay) {
+      return 1;
+    }
+    return hour >= 1 ? 1 : 0;
+  }
+
+  if (month == 10) {
+    if (day < octDay) {
+      return 1;
+    }
+    if (day > octDay) {
+      return 0;
+    }
+    return hour >= 1 ? 0 : 1;
+  }
+
+  return 0;
+}
+
+bool ApplyDstIfNeeded(time_t nowUtc) {
+  int newDst = CalculateDstForUtc(nowUtc);
+  if (newDst == dst) {
+    return false;
+  }
+
+  dst = newDst;
+  configTime(timezone * 3600, dst * 3600, "0.uk.pool.ntp.org", "1.uk.pool.ntp.org");
+  Serial.print("DST updated to ");
+  Serial.println(dst);
+  return true;
+}
+
 void SetTime(void) {
   // In most cases it's best to use pool.ntp.org to find an NTP server (or 0.pool.ntp.org, 1.pool.ntp.org
   // , etc if you need multiple server names)
@@ -363,100 +419,19 @@ void SetTime(void) {
 
     nowTime = ctime(&now);
 
-    nowTimeShort = nowTime.substring(10, 16);
+  nowTimeShort = nowTime.substring(10, 16);
 
-    delay(1000);  // is this really needed?
+  delay(1000);  // is this really needed?
   }
   Serial.print("\nTime Synchronised : ");
   Serial.println(nowTime);
-  Serial.print("DST = ");
-  Serial.println(dst);
-
-  //HACK NOW TIME
-  //Serial.print("HACKING NOW TIME to ");
-  //nowTime = "Mon Mar 30 22:52:59 2021";
-  //Serial.println(nowTime);
-
-  dstMonth = nowTime.substring(4, 7);
-  dstDate = nowTime.substring(8, 10).toInt();
-  dstYear = nowTime.substring(20, 25).toInt();
-  //today=nowTime.substring(4,10);        // Moved this line to the main loop
-
-  if (dstMonth.equals("Nov")) {
-    Serial.println("It's winter Nov");
-    dst = 0;
-  }
-
-  if (dstMonth == "Dec") {
-    Serial.println("It's winter Dec");
-    dst = 0;
-  }
-
-  if (dstMonth == "Jan") {
-    Serial.println("It's winter Jan");
-    dst = 0;
-  }
-
-  if (dstMonth == "Feb") {
-    Serial.println("It's winter Feb");
-    dst = 0;
-  }
-
-  if (dstMonth == "Apr") {
-    Serial.println("It's summer Apr");
-    dst = 1;
-  }
-
-
-  if (dstMonth == "May") {
-    Serial.println("It's summer May");
-    dst = 1;
-  }
-
-
-  if (dstMonth == "Jun") {
-    Serial.println("It's summer Jun");
-    dst = 1;
-  }
-
-
-  if (dstMonth == "Jul") {
-    Serial.println("It's summer Jul");
-    dst = 1;
-  }
-
-  if (dstMonth == "Aug") {
-    Serial.println("It's summer Aug");
-    dst = 1;
-  }
-
-  if (dstMonth == "Sep") {
-    Serial.println("It's summer Sep");
-    dst = 1;
-  }
-
-  // In these clock change months, night need to include a time check to make sure happens at 2am - tricky
-  // Probably best to just leave an see what it does!
-  // Could simulate maybe
-
-  if (dstMonth == "Oct" && dstDate < oct[dstYear - 2021]) {
-    Serial.println("It's summer Oct");
-    dst = 1;
-  }
-
-  if (dstMonth == "Oct" && dstDate >= oct[dstYear - 2021]) {
-    Serial.println("It's winter Oct");
-    dst = 0;
-  }
-
-  if (dstMonth == "Mar" && dstDate < mar[dstYear - 2021]) {
-    Serial.println("It's winter Mar");
-    dst = 0;  //changed 27/03/22
-  }
-
-  if (dstMonth == "Mar" && dstDate >= mar[dstYear - 2021]) {
-    Serial.println("It's summer Mar");
-    dst = 1;  //changed 27/03/22
+  time_t nowUtc = time(nullptr);
+  if (ApplyDstIfNeeded(nowUtc)) {
+    time_t nowLocal = time(nullptr);
+    nowTime = ctime(&nowLocal);
+    nowTimeShort = nowTime.substring(10, 16);
+    Serial.print("Time adjusted for DST: ");
+    Serial.println(nowTime);
   }
 }
 
@@ -694,6 +669,11 @@ void loop(void) {
     WiFi.disconnect();
     PrintMsg(nowTime.substring(10, 16));  //Display Time  May be able to start at 11 (might be a space)
     bigcount = 0;
+  }
+
+  if ((bigcount % 60) == 0) {
+    time_t nowUtc = time(nullptr);
+    ApplyDstIfNeeded(nowUtc);
   }
 
   time_t now = time(nullptr);
