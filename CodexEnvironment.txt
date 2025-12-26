@@ -100,4 +100,4 @@ retry 5 5 arduino-cli lib install "MD_MAX72XX"
 retry 5 5 arduino-cli lib install "BMP280_DEV"
 
 echo "✅ Setup complete. Compile with:"
-echo "   arduino-cli compile --fqbn esp8266:esp8266:nodemcuv2 max72LedNodeMCU_Scroll_Working_v10.9.10/max72LedNodeMCU_Scroll_Working_v10.9.10.ino"
+echo "   arduino-cli compile --fqbn esp8266:esp8266:nodemcuv2 max72LedNodeMCU_Scroll_Working/max72LedNodeMCU_Scroll_Working.ino"
