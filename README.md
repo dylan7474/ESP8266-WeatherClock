@@ -36,7 +36,7 @@ Open `max72LedNodeMCU_Scroll_Working_v10.9.10.ino` in the Arduino IDE or use `ar
 * **Power on**: the device boots, connects to Wi-Fi, and begins scrolling the clock and weather messages.
 * **Wi-Fi credentials**: update `max72LedNodeMCU_Scroll_Working_v10.9.10/Config.h` with your Wi-Fi + OpenWeather API key before flashing.
 * **Location settings**: update the default latitude/longitude in `Config.h` or use the on-device web portal to save them.
-* **Display behavior**: choose a preset in `Config.h` (`MESSAGE_PRESET_NAME`) and edit presets in `MessagePresets.h` to customize date-based messages.
+* **Display behavior**: choose a preset in `Config.h` (`MESSAGE_PRESET_NAME`) and edit presets in `MessagePresets.h` to customize date-based messages using `{ "Mon DD", "Message" }` entry pairs.
 
 ## Configuration portal
 

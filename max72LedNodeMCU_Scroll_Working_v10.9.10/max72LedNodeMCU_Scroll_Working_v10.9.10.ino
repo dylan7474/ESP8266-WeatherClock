@@ -172,8 +172,7 @@ uint32_t counter = 0;
 int mar[20] = { 28, 27, 26, 31, 30, 29, 28, 26, 25, 31, 30, 28, 27, 26, 25, 30, 29, 28, 27, 25 };
 int oct[20] = { 31, 30, 29, 27, 26, 25, 31, 29, 28, 27, 26, 31, 30, 29, 28, 26, 25, 31, 30, 28 };
 
-const char* const* MessageDate = nullptr;
-const char* const* MessageText = nullptr;
+const MessageEntry* MessageEntries = nullptr;
 size_t NoOfMessages = 0;
 String today;
 
@@ -202,8 +201,7 @@ void ApplyMessagePreset(const MessagePreset* preset) {
   if (preset == nullptr) {
     return;
   }
-  MessageDate = preset->dates;
-  MessageText = preset->messages;
+  MessageEntries = preset->entries;
   NoOfMessages = preset->count;
 }
 
@@ -589,12 +587,12 @@ void setup(void) {
   // The below just for testing so you can see that the messages are correct
   int count = 0;
   while (count < NoOfMessages) {
-    if (today == MessageDate[count]) {
-      ScrollMsg(MessageText[count], 20);
+    if (today == MessageEntries[count].date) {
+      ScrollMsg(MessageEntries[count].message, 20);
     }
-    Serial.print(MessageDate[count]);
+    Serial.print(MessageEntries[count].date);
     Serial.print(" - ");
-    Serial.println(MessageText[count]);
+    Serial.println(MessageEntries[count].message);
     count++;
   }
 
@@ -659,13 +657,13 @@ void loop(void) {
     int count = 0;
 
     while (count < NoOfMessages) {
-      if (today == MessageDate[count]) {
-        ScrollMsg(MessageText[count], 20);
+      if (today == MessageEntries[count].date) {
+        ScrollMsg(MessageEntries[count].message, 20);
       }
       // The below just for testing so you can see that the messages are correct
-      //Serial.print(MessageDate[count]);
+      //Serial.print(MessageEntries[count].date);
       //Serial.print(" - ");
-      //Serial.println(MessageText[count]);
+      //Serial.println(MessageEntries[count].message);
       count++;
     }
 
