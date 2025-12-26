@@ -2,7 +2,7 @@
 
 ARDUINO_CLI ?= arduino-cli
 FQBN ?= esp8266:esp8266:nodemcuv2
-SKETCH_DIR := max72LedNodeMCU_Scroll_Working_v10.9.10
+SKETCH_DIR := max72LedNodeMCU_Scroll_Working
 BUILD_DIR ?= build
 LIBRARIES := MD_Parola MD_MAX72XX ArduinoJson BMP280_DEV
 
