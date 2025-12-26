@@ -13,6 +13,8 @@ This repo ships lightweight Makefiles for convenience, and the firmware build is
 make
 ```
 
+The Arduino CLI compile step can take around 1–2 minutes on a cold build and may be quiet until it completes.
+
 To run a dependency check before building (Arduino CLI + ESP8266 core), use:
 
 ```bash
