@@ -6,7 +6,7 @@ This project is an ESP8266-based scrolling weather clock built around MAX7219 LE
 
 ### Linux (Make)
 
-This repo ships lightweight Makefiles for convenience, but the actual firmware build is done with the Arduino toolchain.
+This repo ships lightweight Makefiles for convenience, and the firmware build is done with the Arduino toolchain via Arduino CLI. The `make` target installs required libraries (MD_Parola, MD_MAX72XX, ArduinoJson, BMP280_DEV) before compiling, so ensure you have network access or preinstall those libraries with `arduino-cli lib install`.
 
 ```bash
 ./configure
@@ -17,6 +17,12 @@ To run a dependency check before building (Arduino CLI + ESP8266 core), use:
 
 ```bash
 make check
+```
+
+You can override the board FQBN or output directory when building:
+
+```bash
+make FQBN=esp8266:esp8266:generic BUILD_DIR=build
 ```
 
 ### Arduino build
