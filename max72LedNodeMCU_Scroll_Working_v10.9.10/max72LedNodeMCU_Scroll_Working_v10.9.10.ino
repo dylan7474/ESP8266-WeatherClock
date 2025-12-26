@@ -1,7 +1,14 @@
+// Ver 10.9.11 (26/12/25)
+// Modernized the config portal styling and status messaging
+// Added editable custom date messages in the config portal (stored in config.json)
+// Refactored message presets into date/message entry pairs
+// Improved DST auto-update handling during clock syncs
+//
 // Ver 10.9.10 (29/08/22)
 // Fixed birthday messages, added a few more and added 10 day reminders
 //
-// The fix for wifi on the ESP8266 is to use Wireless Mode : Legacy (01/06/24)
+// Updates (01/06/24)
+// The fix for wifi on the ESP8266 is to use Wireless Mode : Legacy
 
 // Ver 10.9.9 (27/03/22)
 // Changed the march dst setting - seemed to wrong 298 , 303
@@ -138,7 +145,7 @@ BMP280_DEV bmp280;
 
 MD_Parola P = MD_Parola(HARDWARE_TYPE, CS_PIN, MAX_DEVICES);
 
-String Version = "max72LedNodeMCU_Scroll_Working_v10.9.10";
+String Version = "max72LedNodeMCU_Scroll_Working_v10.9.11";
 float TempScale = 0.78;
 int timezone = 0;
 int dst = 0;  //dst = 0 for GMT , dst = 1 for bst
