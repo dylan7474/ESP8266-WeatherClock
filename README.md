@@ -37,6 +37,7 @@ Open `max72LedNodeMCU_Scroll_Working_v10.9.10.ino` in the Arduino IDE or use `ar
 * **Wi-Fi credentials**: update `max72LedNodeMCU_Scroll_Working_v10.9.10/Config.h` with your Wi-Fi + OpenWeather API key before flashing.
 * **Location settings**: update the default latitude/longitude in `Config.h` or use the on-device web portal to save them.
 * **Display behavior**: choose a preset in `Config.h` (`MESSAGE_PRESET_NAME`) and edit presets in `MessagePresets.h` to customize date-based messages using `{ "Mon DD", "Message" }` entry pairs.
+* **UK daylight saving**: the clock recalculates BST/GMT in firmware (last Sunday in March/October at 01:00 UTC) and updates the offset without requiring a reboot.
 
 ## Configuration portal
 
