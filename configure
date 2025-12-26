@@ -1,0 +1,43 @@
+#!/bin/sh
+
+set -eu
+
+missing=0
+
+note() {
+  printf '%s\n' "$*"
+}
+
+check_cmd() {
+  cmd="$1"
+  hint="$2"
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    note "Missing: $cmd"
+    note "  Hint: $hint"
+    missing=1
+  else
+    note "Found: $cmd"
+  fi
+}
+
+note "Checking build tools and libraries..."
+
+check_cmd arduino-cli "Install Arduino CLI (https://arduino.github.io/arduino-cli/latest/installation/)."
+check_cmd python3 "Install Python 3 (e.g., 'sudo apt-get install python3' or 'brew install python')."
+
+if command -v arduino-cli >/dev/null 2>&1; then
+  if arduino-cli core list | grep -q "esp8266:esp8266"; then
+    note "Found: esp8266 core for Arduino CLI"
+  else
+    note "Missing: esp8266 core for Arduino CLI"
+    note "  Hint: Run 'arduino-cli core update-index' and 'arduino-cli core install esp8266:esp8266'."
+    missing=1
+  fi
+fi
+
+if [ "$missing" -ne 0 ]; then
+  note "\nOne or more dependencies are missing. Please install them and re-run ./configure."
+  exit 1
+fi
+
+note "\nAll dependencies appear to be installed."
