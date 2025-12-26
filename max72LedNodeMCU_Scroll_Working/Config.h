@@ -15,5 +15,8 @@ const char* DEFAULT_LONGITUDE = "-1.08";
 // Message preset to use (see MessagePresets.h for available names).
 const char* MESSAGE_PRESET_NAME = "family";
 
+// Default time zone offset in hours from UTC (e.g. 0 for GMT, 1 for CET).
+const int DEFAULT_TIMEZONE = 0;
+
 // Device label used for the configuration portal SSID.
 const char* DEVICE_NAME = "WeatherClock";
