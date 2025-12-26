@@ -186,7 +186,9 @@ struct RuntimeConfig {
   String password;
   String latitude;
   String longitude;
+  String messagePreset;
   String customMessages;
+  int timezoneOffset;
 };
 
 RuntimeConfig runtimeConfig;
@@ -225,7 +227,9 @@ void ApplyDefaultConfig() {
   runtimeConfig.password = DEFAULT_WIFI_PASSWORD;
   runtimeConfig.latitude = DEFAULT_LATITUDE;
   runtimeConfig.longitude = DEFAULT_LONGITUDE;
+  runtimeConfig.messagePreset = MESSAGE_PRESET_NAME;
   runtimeConfig.customMessages = "";
+  runtimeConfig.timezoneOffset = DEFAULT_TIMEZONE;
 }
 
 bool LoadRuntimeConfig() {
@@ -251,7 +255,9 @@ bool LoadRuntimeConfig() {
   runtimeConfig.password = doc["password"] | runtimeConfig.password;
   runtimeConfig.latitude = doc["latitude"] | runtimeConfig.latitude;
   runtimeConfig.longitude = doc["longitude"] | runtimeConfig.longitude;
+  runtimeConfig.messagePreset = doc["messagePreset"] | runtimeConfig.messagePreset;
   runtimeConfig.customMessages = doc["customMessages"] | runtimeConfig.customMessages;
+  runtimeConfig.timezoneOffset = doc["timezoneOffset"] | runtimeConfig.timezoneOffset;
   return true;
 }
 
@@ -264,7 +270,9 @@ bool SaveRuntimeConfig() {
   doc["password"] = runtimeConfig.password;
   doc["latitude"] = runtimeConfig.latitude;
   doc["longitude"] = runtimeConfig.longitude;
+  doc["messagePreset"] = runtimeConfig.messagePreset;
   doc["customMessages"] = runtimeConfig.customMessages;
+  doc["timezoneOffset"] = runtimeConfig.timezoneOffset;
   File configFile = LittleFS.open(kConfigPath, "w");
   if (!configFile) {
     return false;
@@ -371,12 +379,19 @@ bool ApplyCustomMessages(const String& text) {
 
 void ApplyMessageConfiguration() {
   if (!ApplyCustomMessages(runtimeConfig.customMessages)) {
-    const MessagePreset* preset = FindMessagePreset(MESSAGE_PRESET_NAME);
+    const char* presetName = runtimeConfig.messagePreset.length() > 0
+                               ? runtimeConfig.messagePreset.c_str()
+                               : MESSAGE_PRESET_NAME;
+    const MessagePreset* preset = FindMessagePreset(presetName);
     if (preset == nullptr) {
       preset = &kMessagePresets[0];
     }
     ApplyMessagePreset(preset);
   }
+}
+
+void ApplyTimezoneConfiguration() {
+  timezone = runtimeConfig.timezoneOffset;
 }
 
 String BuildConfigPage() {
@@ -391,23 +406,36 @@ String BuildConfigPage() {
                   "h1{margin:0 0 8px;font-size:28px;letter-spacing:.04em;}"
                   "p{margin:0 0 24px;color:var(--muted);}"
                   "label{display:block;margin-top:16px;font-size:13px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);}"
-                  "input,textarea{width:100%;margin-top:8px;padding:12px 14px;border-radius:12px;border:1px solid rgba(139,160,200,.3);"
+                  "input,textarea,select{width:100%;margin-top:8px;padding:12px 14px;border-radius:12px;border:1px solid rgba(139,160,200,.3);"
                   "background:rgba(7,10,20,.9);color:var(--text);box-shadow:inset 0 0 0 1px rgba(39,243,255,.08);}"
-                  "input:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(39,243,255,.2);}"
+                  "input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(39,243,255,.2);}"
                   "textarea{min-height:160px;font-family:'SFMono-Regular',Consolas,monospace;font-size:13px;line-height:1.5;}"
                   ".hint{margin-top:8px;font-size:12px;color:var(--muted);}"
                   "button{margin-top:22px;padding:12px 22px;border:none;border-radius:999px;font-weight:600;letter-spacing:.08em;"
                   "color:#031018;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 12px 30px rgba(39,243,255,.35);}"
                   ".status{margin-top:18px;font-size:12px;color:var(--muted);}"
                   "</style></head><body><div class='wrap'><div class='card'>"
-                  "<h1>Weather Clock Portal</h1><p>Configure Wi-Fi, location, and custom date messages.</p>"
+                  "<h1>Weather Clock Portal</h1><p>Configure Wi-Fi, location, time zone, and custom messages.</p>"
                   "<form method='POST' action='/save'>");
   page += "<label>Wi-Fi SSID</label><input name='ssid' value='" + runtimeConfig.ssid + "'>";
   page += "<label>Wi-Fi Password</label><input name='password' type='password' value='" + runtimeConfig.password + "'>";
   page += "<label>Latitude</label><input name='latitude' value='" + runtimeConfig.latitude + "'>";
   page += "<label>Longitude</label><input name='longitude' value='" + runtimeConfig.longitude + "'>";
+  page += "<label>Message preset</label><select name='messagePreset'>";
+  for (size_t i = 0; i < kMessagePresetCount; i++) {
+    String presetName = kMessagePresets[i].name;
+    page += "<option value='" + presetName + "'";
+    if (presetName.equalsIgnoreCase(runtimeConfig.messagePreset)) {
+      page += " selected";
+    }
+    page += ">" + presetName + "</option>";
+  }
+  page += "</select>";
+  page += "<label>Time zone offset (UTC hours)</label><input name='timezoneOffset' type='number' step='1' min='-12' max='14' value='"
+          + String(runtimeConfig.timezoneOffset) + "'>";
+  page += "<div class='hint'>Use a whole-hour offset from UTC (e.g. -5 for EST, 1 for CET).</div>";
   page += "<label>Custom date messages</label><textarea name='customMessages' placeholder='Jan 1 | Happy New Year'>" + runtimeConfig.customMessages + "</textarea>";
-  page += "<div class='hint'>Use one message per line: <strong>Mon DD | Message</strong> (e.g. <strong>Feb 14 | Happy Valentines Day</strong>). Leave empty to use the preset.</div>";
+  page += "<div class='hint'>Use one message per line: <strong>Mon DD | Message</strong> (e.g. <strong>Feb 14 | Happy Valentines Day</strong>). Leave empty to use the preset above.</div>";
   page += "<button type='submit'>Save</button></form><div class='status'>Signals will refresh after saving.</div></div></div></body></html>";
   return page;
 }
@@ -429,11 +457,18 @@ void HandleConfigSave() {
   if (configServer.hasArg("longitude")) {
     runtimeConfig.longitude = configServer.arg("longitude");
   }
+  if (configServer.hasArg("messagePreset")) {
+    runtimeConfig.messagePreset = configServer.arg("messagePreset");
+  }
+  if (configServer.hasArg("timezoneOffset")) {
+    runtimeConfig.timezoneOffset = configServer.arg("timezoneOffset").toInt();
+  }
   if (configServer.hasArg("customMessages")) {
     runtimeConfig.customMessages = configServer.arg("customMessages");
   }
   SaveRuntimeConfig();
   ApplyMessageConfiguration();
+  ApplyTimezoneConfiguration();
   configPortalSaved = true;
   configServer.send(200, "text/html", "<html><body style='font-family:Arial;background:#05070f;color:#e6f0ff;padding:20px;'><h1>Saved</h1><p>Settings updated. You can close this page.</p></body></html>");
 }
@@ -703,6 +738,7 @@ void setup(void) {
 
   LoadRuntimeConfig();
   ApplyMessageConfiguration();
+  ApplyTimezoneConfiguration();
 
   // The below just for testing so you can see that the messages are correct
   int count = 0;
