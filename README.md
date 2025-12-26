@@ -29,12 +29,12 @@ make FQBN=esp8266:esp8266:generic BUILD_DIR=build
 
 ### Arduino build
 
-Open `max72LedNodeMCU_Scroll_Working_v10.9.10.ino` in the Arduino IDE or use `arduino-cli` and compile for **Generic ESP8266 Module** or **NodeMCU 1.0**. Create `max72LedNodeMCU_Scroll_Working_v10.9.10/Config.h` from `Config.h.example` with your Wi-Fi and OpenWeather API key before flashing.
+Open `max72LedNodeMCU_Scroll_Working_v10.9.10.ino` in the Arduino IDE or use `arduino-cli` and compile for **Generic ESP8266 Module** or **NodeMCU 1.0**. Update `max72LedNodeMCU_Scroll_Working_v10.9.10/Config.h` with your Wi-Fi and OpenWeather API key before flashing.
 
 ## Basic controls
 
 * **Power on**: the device boots, connects to Wi-Fi, and begins scrolling the clock and weather messages.
-* **Wi-Fi credentials**: create `max72LedNodeMCU_Scroll_Working_v10.9.10/Config.h` from `Config.h.example` and add your Wi-Fi + OpenWeather API key (the file is git-ignored).
+* **Wi-Fi credentials**: update `max72LedNodeMCU_Scroll_Working_v10.9.10/Config.h` with your Wi-Fi + OpenWeather API key before flashing.
 * **Location settings**: update the default latitude/longitude in `Config.h` or use the on-device web portal to save them.
 * **Display behavior**: choose a preset in `Config.h` (`MESSAGE_PRESET_NAME`) and edit presets in `MessagePresets.h` to customize date-based messages.
 
