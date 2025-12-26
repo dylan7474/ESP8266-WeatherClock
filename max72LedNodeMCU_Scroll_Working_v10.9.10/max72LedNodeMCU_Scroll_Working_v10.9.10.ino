@@ -108,6 +108,7 @@
 // Compile for Generic ESP8266 Module or NodeMCU 1.0
 
 #include <string.h>
+#include <ctype.h>
 #include <MD_Parola.h>
 #include <MD_MAX72xx.h>
 #include <SPI.h>
@@ -178,12 +179,22 @@ struct RuntimeConfig {
   String password;
   String latitude;
   String longitude;
+  String customMessages;
 };
 
 RuntimeConfig runtimeConfig;
 ESP8266WebServer configServer(80);
 bool configPortalSaved = false;
 const char* kConfigPath = "/config.json";
+
+struct CustomMessageStore {
+  MessageEntry* entries = nullptr;
+  String* dates = nullptr;
+  String* messages = nullptr;
+  size_t count = 0;
+};
+
+CustomMessageStore customMessages;
 
 const MessagePreset* FindMessagePreset(const char* name) {
   for (size_t i = 0; i < kMessagePresetCount; i++) {
@@ -207,6 +218,7 @@ void ApplyDefaultConfig() {
   runtimeConfig.password = DEFAULT_WIFI_PASSWORD;
   runtimeConfig.latitude = DEFAULT_LATITUDE;
   runtimeConfig.longitude = DEFAULT_LONGITUDE;
+  runtimeConfig.customMessages = "";
 }
 
 bool LoadRuntimeConfig() {
@@ -222,7 +234,7 @@ bool LoadRuntimeConfig() {
   if (!configFile) {
     return false;
   }
-  DynamicJsonDocument doc(512);
+  DynamicJsonDocument doc(2048);
   DeserializationError error = deserializeJson(doc, configFile);
   configFile.close();
   if (error) {
@@ -232,6 +244,7 @@ bool LoadRuntimeConfig() {
   runtimeConfig.password = doc["password"] | runtimeConfig.password;
   runtimeConfig.latitude = doc["latitude"] | runtimeConfig.latitude;
   runtimeConfig.longitude = doc["longitude"] | runtimeConfig.longitude;
+  runtimeConfig.customMessages = doc["customMessages"] | runtimeConfig.customMessages;
   return true;
 }
 
@@ -239,11 +252,12 @@ bool SaveRuntimeConfig() {
   if (!LittleFS.begin()) {
     return false;
   }
-  DynamicJsonDocument doc(512);
+  DynamicJsonDocument doc(2048);
   doc["ssid"] = runtimeConfig.ssid;
   doc["password"] = runtimeConfig.password;
   doc["latitude"] = runtimeConfig.latitude;
   doc["longitude"] = runtimeConfig.longitude;
+  doc["customMessages"] = runtimeConfig.customMessages;
   File configFile = LittleFS.open(kConfigPath, "w");
   if (!configFile) {
     return false;
@@ -253,17 +267,141 @@ bool SaveRuntimeConfig() {
   return true;
 }
 
+void ClearCustomMessages() {
+  delete[] customMessages.entries;
+  delete[] customMessages.dates;
+  delete[] customMessages.messages;
+  customMessages.entries = nullptr;
+  customMessages.dates = nullptr;
+  customMessages.messages = nullptr;
+  customMessages.count = 0;
+}
+
+String NormalizeDateToken(const String& raw) {
+  String trimmed = raw;
+  trimmed.trim();
+  if (trimmed.length() < 4) {
+    return "";
+  }
+  String month = trimmed.substring(0, 3);
+  month.toLowerCase();
+  month.setCharAt(0, toupper(month.charAt(0)));
+  String dayPart = trimmed.substring(3);
+  dayPart.trim();
+  int day = dayPart.toInt();
+  if (day < 1 || day > 31) {
+    return "";
+  }
+  char buffer[8];
+  snprintf(buffer, sizeof(buffer), "%s %2d", month.c_str(), day);
+  return String(buffer);
+}
+
+bool ApplyCustomMessages(const String& text) {
+  ClearCustomMessages();
+  String payloadText = text;
+  payloadText.trim();
+  if (payloadText.length() == 0) {
+    return false;
+  }
+  size_t lineCount = 0;
+  int start = 0;
+  while (start < payloadText.length()) {
+    int end = payloadText.indexOf('\n', start);
+    if (end == -1) {
+      end = payloadText.length();
+    }
+    String line = payloadText.substring(start, end);
+    line.trim();
+    int separator = line.indexOf('|');
+    if (line.length() > 0 && separator > 0 && separator < line.length() - 1) {
+      lineCount++;
+    }
+    start = end + 1;
+  }
+  if (lineCount == 0) {
+    return false;
+  }
+  customMessages.entries = new MessageEntry[lineCount];
+  customMessages.dates = new String[lineCount];
+  customMessages.messages = new String[lineCount];
+  customMessages.count = 0;
+  start = 0;
+  while (start < payloadText.length()) {
+    int end = payloadText.indexOf('\n', start);
+    if (end == -1) {
+      end = payloadText.length();
+    }
+    String line = payloadText.substring(start, end);
+    line.trim();
+    int separator = line.indexOf('|');
+    if (line.length() > 0 && separator > 0 && separator < line.length() - 1) {
+      String dateToken = line.substring(0, separator);
+      String messageToken = line.substring(separator + 1);
+      dateToken.trim();
+      messageToken.trim();
+      if (messageToken.length() > 0) {
+        String normalizedDate = NormalizeDateToken(dateToken);
+        if (normalizedDate.length() > 0) {
+          customMessages.dates[customMessages.count] = normalizedDate;
+          customMessages.messages[customMessages.count] = messageToken;
+          customMessages.entries[customMessages.count] = { customMessages.dates[customMessages.count].c_str(),
+                                                          customMessages.messages[customMessages.count].c_str() };
+          customMessages.count++;
+        }
+      }
+    }
+    start = end + 1;
+  }
+  if (customMessages.count == 0) {
+    ClearCustomMessages();
+    return false;
+  }
+  MessageEntries = customMessages.entries;
+  NoOfMessages = customMessages.count;
+  return true;
+}
+
+void ApplyMessageConfiguration() {
+  if (!ApplyCustomMessages(runtimeConfig.customMessages)) {
+    const MessagePreset* preset = FindMessagePreset(MESSAGE_PRESET_NAME);
+    if (preset == nullptr) {
+      preset = &kMessagePresets[0];
+    }
+    ApplyMessagePreset(preset);
+  }
+}
+
 String BuildConfigPage() {
-  String page = F("<!doctype html><html><head><meta charset='utf-8'><title>Weather Clock Setup</title>"
-                  "<style>body{font-family:Arial,Helvetica,sans-serif;margin:20px;}label{display:block;margin-top:12px;}"
-                  "input{width:100%;padding:8px;margin-top:4px;}button{margin-top:16px;padding:10px 16px;}</style>"
-                  "</head><body><h1>Weather Clock Setup</h1><p>Update Wi-Fi and location settings.</p>"
+  String page = F("<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
+                  "<title>Weather Clock Portal</title>"
+                  "<style>"
+                  ":root{color-scheme:dark;--bg:#05070f;--panel:#11162a;--accent:#27f3ff;--accent2:#9b6bff;--text:#e6f0ff;--muted:#8ea0c8;}"
+                  "body{margin:0;font-family:'Segoe UI',Roboto,Arial,sans-serif;background:radial-gradient(circle at top,#111a3a,#05070f 55%);color:var(--text);}"
+                  ".wrap{max-width:720px;margin:32px auto;padding:0 20px;}"
+                  ".card{background:linear-gradient(145deg,rgba(23,32,66,.92),rgba(8,12,26,.95));"
+                  "border:1px solid rgba(39,243,255,.2);border-radius:20px;padding:28px;box-shadow:0 20px 40px rgba(4,8,20,.65);}"
+                  "h1{margin:0 0 8px;font-size:28px;letter-spacing:.04em;}"
+                  "p{margin:0 0 24px;color:var(--muted);}"
+                  "label{display:block;margin-top:16px;font-size:13px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);}"
+                  "input,textarea{width:100%;margin-top:8px;padding:12px 14px;border-radius:12px;border:1px solid rgba(139,160,200,.3);"
+                  "background:rgba(7,10,20,.9);color:var(--text);box-shadow:inset 0 0 0 1px rgba(39,243,255,.08);}"
+                  "input:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(39,243,255,.2);}"
+                  "textarea{min-height:160px;font-family:'SFMono-Regular',Consolas,monospace;font-size:13px;line-height:1.5;}"
+                  ".hint{margin-top:8px;font-size:12px;color:var(--muted);}"
+                  "button{margin-top:22px;padding:12px 22px;border:none;border-radius:999px;font-weight:600;letter-spacing:.08em;"
+                  "color:#031018;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 12px 30px rgba(39,243,255,.35);}"
+                  ".status{margin-top:18px;font-size:12px;color:var(--muted);}"
+                  "</style></head><body><div class='wrap'><div class='card'>"
+                  "<h1>Weather Clock Portal</h1><p>Configure Wi-Fi, location, and custom date messages.</p>"
                   "<form method='POST' action='/save'>");
   page += "<label>Wi-Fi SSID</label><input name='ssid' value='" + runtimeConfig.ssid + "'>";
   page += "<label>Wi-Fi Password</label><input name='password' type='password' value='" + runtimeConfig.password + "'>";
   page += "<label>Latitude</label><input name='latitude' value='" + runtimeConfig.latitude + "'>";
   page += "<label>Longitude</label><input name='longitude' value='" + runtimeConfig.longitude + "'>";
-  page += "<button type='submit'>Save</button></form></body></html>";
+  page += "<label>Custom date messages</label><textarea name='customMessages' placeholder='Jan 1 | Happy New Year'>" + runtimeConfig.customMessages + "</textarea>";
+  page += "<div class='hint'>Use one message per line: <strong>Mon DD | Message</strong> (e.g. <strong>Feb 14 | Happy Valentines Day</strong>). Leave empty to use the preset.</div>";
+  page += "<button type='submit'>Save</button></form><div class='status'>Signals will refresh after saving.</div></div></div></body></html>";
   return page;
 }
 
@@ -284,9 +422,13 @@ void HandleConfigSave() {
   if (configServer.hasArg("longitude")) {
     runtimeConfig.longitude = configServer.arg("longitude");
   }
+  if (configServer.hasArg("customMessages")) {
+    runtimeConfig.customMessages = configServer.arg("customMessages");
+  }
   SaveRuntimeConfig();
+  ApplyMessageConfiguration();
   configPortalSaved = true;
-  configServer.send(200, "text/html", "<html><body><h1>Saved</h1><p>Settings updated. You can close this page.</p></body></html>");
+  configServer.send(200, "text/html", "<html><body style='font-family:Arial;background:#05070f;color:#e6f0ff;padding:20px;'><h1>Saved</h1><p>Settings updated. You can close this page.</p></body></html>");
 }
 
 void StartConfigPortal() {
@@ -553,11 +695,7 @@ void setup(void) {
   ScrollMsg(Version, 15);
 
   LoadRuntimeConfig();
-  const MessagePreset* preset = FindMessagePreset(MESSAGE_PRESET_NAME);
-  if (preset == nullptr) {
-    preset = &kMessagePresets[0];
-  }
-  ApplyMessagePreset(preset);
+  ApplyMessageConfiguration();
 
   // The below just for testing so you can see that the messages are correct
   int count = 0;

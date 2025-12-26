@@ -41,7 +41,9 @@ Open `max72LedNodeMCU_Scroll_Working_v10.9.10.ino` in the Arduino IDE or use `ar
 
 ## Configuration portal
 
-If the clock cannot connect to Wi-Fi, it starts an access point named `WeatherClock-<chipid>`. Connect to that network and visit `http://192.168.4.1` to set Wi-Fi credentials and the latitude/longitude. Settings are stored on the device and reused on future boots.
+If the clock cannot connect to Wi-Fi, it starts an access point named `WeatherClock-<chipid>`. Connect to that network and visit `http://192.168.4.1` to set Wi-Fi credentials, latitude/longitude, and custom date messages. Settings are stored on the device and reused on future boots.
+
+Custom date messages are entered one per line using the format `Mon DD | Message` (for example `Feb 14 | Happy Valentines Day`). Leave the list empty to continue using the preset in `MessagePresets.h`.
 
 ## Roadmap
 
