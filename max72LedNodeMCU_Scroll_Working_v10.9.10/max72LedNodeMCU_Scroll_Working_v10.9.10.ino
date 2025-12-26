@@ -114,6 +114,8 @@
 #include <ESP8266WiFi.h>
 #include <ArduinoJson.h>
 #include <time.h>
+#include <LittleFS.h>
+#include <ESP8266WebServer.h>
 
 // Added for Version 10.4
 #include <BMP280_DEV.h>
@@ -123,6 +125,9 @@ BMP280_DEV bmp280;
 // Added for Version 10.7
 // #include <HTTPClient.h>  //from esp32...doesn't seem to work
 #include <ESP8266HTTPClient.h>
+
+#include "Config.h"
+#include "MessagePresets.h"
 
 #define HARDWARE_TYPE MD_MAX72XX::FC16_HW
 #define MAX_DEVICES 4
@@ -148,8 +153,6 @@ String StoredWeatherDescription;
 String StoredWeatherTemperature;
 
 const char* ESP_HOST_NAME = "esp-" + ESP.getFlashChipId();
-const char* WIFI_SSID = "CHIGLEY";
-const char* WIFI_PASSWORD = "CrimbleCrumble20$";
 
 int bigcount = 0;
 
@@ -169,18 +172,171 @@ uint32_t counter = 0;
 int mar[20] = { 28, 27, 26, 31, 30, 29, 28, 26, 25, 31, 30, 28, 27, 26, 25, 30, 29, 28, 27, 25 };
 int oct[20] = { 31, 30, 29, 27, 26, 25, 31, 29, 28, 27, 26, 31, 30, 29, 28, 26, 25, 31, 30, 28 };
 
-int const NoOfMessages = 30;
-String MessageDate[NoOfMessages] = { "Jan  1", "Jan 7", "Jan 17", "Jan 25", "Feb 12", "Feb 14", "Apr  1", "Apr  15", "May 12", "May 22", "May 28", "Jun 2", "Jun 7", "Jun 12", "Jun 20", "Jun 30", "Jul 17", "Jul 27", "Aug 18", "Aug 28", "Oct 31", "Nov 2", "Nov 12", "Nov 29", "Dec  9", "Dec 15", "Dec 24", "Dec 25", "Dec 26", "Dec 31" };
-String Message[NoOfMessages] = { "New Years Day", "10 days to Manuela\'s Bday", "Happy Birthday Manuela", "Burns Night", "Chinese New Year", "Valentines Day", "April Fools Day", "Good Friday", "10 days to Dylan\'s Bday", "Happy Birthday Dylan", "10 days to Maureen\'s Bday", "10 days to Mam\'s Bday", "Happy Birthday Maureen", "Happy Birthday Mam", "10 days to Mel\'s Bday", "Happy Birthday Mel", "10 days to Yvonne\'s Bday", "Happy Birthday Yvonne", "10 days to Dad\'s Bday", "Happy Birthday Dad", "Happy Halloween", "10 days to Harrys\'s Bday", "Happy Birthday Harry", "10 days to Robert\'s Bday", "Happy Birthday Robert", "10 days to Xmas", "Christmas Eve", "Christmas Day", "Boxing Day", "New Years Eve" };
+const char* const* MessageDate = nullptr;
+const char* const* MessageText = nullptr;
+size_t NoOfMessages = 0;
 String today;
 
+struct RuntimeConfig {
+  String ssid;
+  String password;
+  String latitude;
+  String longitude;
+};
+
+RuntimeConfig runtimeConfig;
+ESP8266WebServer configServer(80);
+bool configPortalSaved = false;
+const char* kConfigPath = "/config.json";
+
+const MessagePreset* FindMessagePreset(const char* name) {
+  for (size_t i = 0; i < kMessagePresetCount; i++) {
+    if (String(kMessagePresets[i].name).equalsIgnoreCase(name)) {
+      return &kMessagePresets[i];
+    }
+  }
+  return nullptr;
+}
+
+void ApplyMessagePreset(const MessagePreset* preset) {
+  if (preset == nullptr) {
+    return;
+  }
+  MessageDate = preset->dates;
+  MessageText = preset->messages;
+  NoOfMessages = preset->count;
+}
+
+void ApplyDefaultConfig() {
+  runtimeConfig.ssid = DEFAULT_WIFI_SSID;
+  runtimeConfig.password = DEFAULT_WIFI_PASSWORD;
+  runtimeConfig.latitude = DEFAULT_LATITUDE;
+  runtimeConfig.longitude = DEFAULT_LONGITUDE;
+}
+
+bool LoadRuntimeConfig() {
+  ApplyDefaultConfig();
+  if (!LittleFS.begin()) {
+    Serial.println("LittleFS mount failed");
+    return false;
+  }
+  if (!LittleFS.exists(kConfigPath)) {
+    return false;
+  }
+  File configFile = LittleFS.open(kConfigPath, "r");
+  if (!configFile) {
+    return false;
+  }
+  DynamicJsonDocument doc(512);
+  DeserializationError error = deserializeJson(doc, configFile);
+  configFile.close();
+  if (error) {
+    return false;
+  }
+  runtimeConfig.ssid = doc["ssid"] | runtimeConfig.ssid;
+  runtimeConfig.password = doc["password"] | runtimeConfig.password;
+  runtimeConfig.latitude = doc["latitude"] | runtimeConfig.latitude;
+  runtimeConfig.longitude = doc["longitude"] | runtimeConfig.longitude;
+  return true;
+}
+
+bool SaveRuntimeConfig() {
+  if (!LittleFS.begin()) {
+    return false;
+  }
+  DynamicJsonDocument doc(512);
+  doc["ssid"] = runtimeConfig.ssid;
+  doc["password"] = runtimeConfig.password;
+  doc["latitude"] = runtimeConfig.latitude;
+  doc["longitude"] = runtimeConfig.longitude;
+  File configFile = LittleFS.open(kConfigPath, "w");
+  if (!configFile) {
+    return false;
+  }
+  serializeJson(doc, configFile);
+  configFile.close();
+  return true;
+}
+
+String BuildConfigPage() {
+  String page = F("<!doctype html><html><head><meta charset='utf-8'><title>Weather Clock Setup</title>"
+                  "<style>body{font-family:Arial,Helvetica,sans-serif;margin:20px;}label{display:block;margin-top:12px;}"
+                  "input{width:100%;padding:8px;margin-top:4px;}button{margin-top:16px;padding:10px 16px;}</style>"
+                  "</head><body><h1>Weather Clock Setup</h1><p>Update Wi-Fi and location settings.</p>"
+                  "<form method='POST' action='/save'>");
+  page += "<label>Wi-Fi SSID</label><input name='ssid' value='" + runtimeConfig.ssid + "'>";
+  page += "<label>Wi-Fi Password</label><input name='password' type='password' value='" + runtimeConfig.password + "'>";
+  page += "<label>Latitude</label><input name='latitude' value='" + runtimeConfig.latitude + "'>";
+  page += "<label>Longitude</label><input name='longitude' value='" + runtimeConfig.longitude + "'>";
+  page += "<button type='submit'>Save</button></form></body></html>";
+  return page;
+}
+
+void HandleConfigRoot() {
+  configServer.send(200, "text/html", BuildConfigPage());
+}
+
+void HandleConfigSave() {
+  if (configServer.hasArg("ssid")) {
+    runtimeConfig.ssid = configServer.arg("ssid");
+  }
+  if (configServer.hasArg("password")) {
+    runtimeConfig.password = configServer.arg("password");
+  }
+  if (configServer.hasArg("latitude")) {
+    runtimeConfig.latitude = configServer.arg("latitude");
+  }
+  if (configServer.hasArg("longitude")) {
+    runtimeConfig.longitude = configServer.arg("longitude");
+  }
+  SaveRuntimeConfig();
+  configPortalSaved = true;
+  configServer.send(200, "text/html", "<html><body><h1>Saved</h1><p>Settings updated. You can close this page.</p></body></html>");
+}
+
+void StartConfigPortal() {
+  configPortalSaved = false;
+  WiFi.mode(WIFI_AP);
+  String apName = String(DEVICE_NAME) + "-" + String(ESP.getChipId(), HEX);
+  WiFi.softAP(apName.c_str());
+  IPAddress apIp = WiFi.softAPIP();
+  Serial.print("Config portal AP: ");
+  Serial.println(apName);
+  Serial.print("Open http://");
+  Serial.println(apIp);
+  ScrollMsg("Config portal at 192.168.4.1", 15);
+
+  configServer.on("/", HTTP_GET, HandleConfigRoot);
+  configServer.on("/save", HTTP_POST, HandleConfigSave);
+  configServer.begin();
+
+  while (!configPortalSaved) {
+    configServer.handleClient();
+    delay(10);
+  }
+
+  configServer.stop();
+  WiFi.softAPdisconnect(true);
+  WiFi.mode(WIFI_STA);
+}
+
 void connectWifi() {
-  Serial.print("Connecting to WiFi ");
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  WiFi.mode(WIFI_STA);
   while (WiFi.status() != WL_CONNECTED) {
-    Serial.print("*");
-    ScrollMsg("Connecting to wifi", 15);
-    delay(1000);
+    Serial.print("Connecting to WiFi ");
+    Serial.println(runtimeConfig.ssid);
+    WiFi.begin(runtimeConfig.ssid.c_str(), runtimeConfig.password.c_str());
+    int attempts = 0;
+    while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+      Serial.print("*");
+      ScrollMsg("Connecting to wifi", 15);
+      delay(1000);
+      attempts++;
+    }
+    if (WiFi.status() != WL_CONNECTED) {
+      Serial.println("\nWiFi connect failed");
+      StartConfigPortal();
+    }
   }
   Serial.println("\nCONNECTED");
 }
@@ -315,7 +471,8 @@ void GetWeather() {
 
   Serial.println("Getting Weather");
   ScrollMsg("Getting Weather", 15);
-  String url = "http://api.openweathermap.org/data/2.5/weather?lat=54.54&lon=-1.08&units=metric&APPID=c848eb234e72b8e3808ab65d17d05231";
+  String url = "http://api.openweathermap.org/data/2.5/weather?lat=" + runtimeConfig.latitude + "&lon=" + runtimeConfig.longitude
+               + "&units=metric&APPID=" + OPENWEATHER_API_KEY;
   WiFiClient client;
   HTTPClient http;
   http.begin(client, url);    //Specify the URL
@@ -422,15 +579,22 @@ void setup(void) {
   P.begin();
   ScrollMsg(Version, 15);
 
+  LoadRuntimeConfig();
+  const MessagePreset* preset = FindMessagePreset(MESSAGE_PRESET_NAME);
+  if (preset == nullptr) {
+    preset = &kMessagePresets[0];
+  }
+  ApplyMessagePreset(preset);
+
   // The below just for testing so you can see that the messages are correct
   int count = 0;
   while (count < NoOfMessages) {
     if (today == MessageDate[count]) {
-      ScrollMsg(Message[count], 20);
+      ScrollMsg(MessageText[count], 20);
     }
     Serial.print(MessageDate[count]);
     Serial.print(" - ");
-    Serial.println(Message[count]);
+    Serial.println(MessageText[count]);
     count++;
   }
 
@@ -496,12 +660,12 @@ void loop(void) {
 
     while (count < NoOfMessages) {
       if (today == MessageDate[count]) {
-        ScrollMsg(Message[count], 20);
+        ScrollMsg(MessageText[count], 20);
       }
       // The below just for testing so you can see that the messages are correct
       //Serial.print(MessageDate[count]);
       //Serial.print(" - ");
-      //Serial.println(Message[count]);
+      //Serial.println(MessageText[count]);
       count++;
     }
 
