@@ -68,7 +68,7 @@ When enabled, the device uses its chip ID to build topics:
 * **Command topic:** `<MQTT_TOPIC_PREFIX>/<chipid>/command/message`
 * **State topic:** `<MQTT_TOPIC_PREFIX>/<chipid>/state/message` (retained)
 
-Publish a plain text payload to the command topic and the clock will scroll it once. The last displayed message is published to the state topic so Home Assistant or other clients can track it.
+Publish a plain text payload to the command topic and the clock will store it, then scroll it after each weather update (similar to the custom date messages). The latest stored message is published to the state topic so Home Assistant or other clients can track it.
 
 ## Configuration portal
 
