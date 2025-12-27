@@ -219,6 +219,8 @@ String mqttCommandTopic;
 String mqttStateTopic;
 String pendingMqttMessage;
 bool mqttMessagePending = false;
+String storedMqttMessage;
+bool storedMqttMessageAvailable = false;
 unsigned long lastMqttReconnectAttempt = 0;
 
 struct CustomMessageStore {
@@ -941,8 +943,9 @@ void loop(void) {
     mqttClient.loop();
   }
   if (mqttMessagePending) {
-    ScrollMsg(pendingMqttMessage, 25);
-    PublishMqttState(pendingMqttMessage);
+    storedMqttMessage = pendingMqttMessage;
+    storedMqttMessageAvailable = true;
+    PublishMqttState(storedMqttMessage);
     mqttMessagePending = false;
   }
 
@@ -976,6 +979,9 @@ void loop(void) {
     //PrintMsg(nowTime.substring(10,16));                          //Display Time
 
     //Put some code to display extra messages here
+    if (storedMqttMessageAvailable) {
+      ScrollMsg(storedMqttMessage, 20);
+    }
 
     int count = 0;
 
