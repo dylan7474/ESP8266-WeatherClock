@@ -69,3 +69,5 @@ After saving settings in the portal, the access point remains available so you c
 When the clock is connected to your network, the same configuration portal is available from the device's assigned IP address.
 
 Custom date messages are entered one per line using the format `Mon DD | Message` (for example `Feb 14 | Happy Valentines Day`). Leave the list empty to continue using the selected preset in `MessagePresets.h`.
+
+The portal also displays the device chip ID along with the MQTT command/state topics built from it, which you can copy into Home Assistant or other MQTT clients.
