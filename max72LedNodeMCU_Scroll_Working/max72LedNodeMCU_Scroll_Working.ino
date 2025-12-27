@@ -204,6 +204,7 @@ RuntimeConfig runtimeConfig;
 ESP8266WebServer configServer(80);
 bool configPortalSaved = false;
 bool configServerRunning = false;
+bool configPortalApEnabled = false;
 const char* kConfigPath = "/config.json";
 
 WiFiClient mqttWiFiClient;
@@ -563,7 +564,7 @@ void HandleConfigSave() {
   ApplyMessageConfiguration();
   ApplyTimezoneConfiguration();
   configPortalSaved = true;
-  configServer.send(200, "text/html", "<html><body style='font-family:Arial;background:#05070f;color:#e6f0ff;padding:20px;'><h1>Saved</h1><p>Settings updated. You can close this page.</p></body></html>");
+  configServer.send(200, "text/html", "<html><body style='font-family:Arial;background:#05070f;color:#e6f0ff;padding:20px;'><h1>Saved</h1><p>Settings updated. You can return to the portal to make more changes.</p><p><a href='/' style='color:#9b6bff;'>Back to portal</a></p></body></html>");
 }
 
 void StartConfigPortalServer() {
@@ -578,6 +579,7 @@ void StartConfigPortalServer() {
 
 void StartConfigPortal() {
   configPortalSaved = false;
+  configPortalApEnabled = true;
   WiFi.mode(WIFI_AP_STA);
   String apName = String(DEVICE_NAME) + "-" + String(ESP.getChipId(), HEX);
   WiFi.softAP(apName.c_str());
@@ -594,11 +596,6 @@ void StartConfigPortal() {
     configServer.handleClient();
     delay(10);
   }
-
-  configServer.stop();
-  configServerRunning = false;
-  WiFi.softAPdisconnect(true);
-  WiFi.mode(WIFI_STA);
 }
 
 void MonitorWiFiConnection() {
@@ -612,7 +609,11 @@ void MonitorWiFiConnection() {
   }
 
   Serial.println("WiFi disconnected, attempting reconnect");
-  WiFi.mode(WIFI_STA);
+  if (configPortalApEnabled) {
+    WiFi.mode(WIFI_AP_STA);
+  } else {
+    WiFi.mode(WIFI_STA);
+  }
   WiFi.begin(runtimeConfig.ssid.c_str(), runtimeConfig.password.c_str());
   lastWiFiReconnectAttempt = now;
 }
