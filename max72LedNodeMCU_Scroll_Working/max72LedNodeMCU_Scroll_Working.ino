@@ -121,6 +121,7 @@
 #include <MD_MAX72xx.h>
 #include <SPI.h>
 #include <ESP8266WiFi.h>
+#include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <time.h>
 #include <LittleFS.h>
@@ -167,6 +168,7 @@ const int kWiFiStatusLedPin = LED_BUILTIN;
 unsigned long lastWiFiReconnectAttempt = 0;
 unsigned long lastWiFiStatusBlink = 0;
 bool wifiStatusLedOn = false;
+const unsigned long kMqttReconnectBackoffMs = 5000;
 
 String payload;
 boolean StartupState = true;
@@ -204,6 +206,17 @@ bool configPortalSaved = false;
 bool configServerRunning = false;
 const char* kConfigPath = "/config.json";
 
+WiFiClient mqttWiFiClient;
+PubSubClient mqttClient(mqttWiFiClient);
+bool mqttEnabled = false;
+String mqttClientId;
+String mqttTopicBase;
+String mqttCommandTopic;
+String mqttStateTopic;
+String pendingMqttMessage;
+bool mqttMessagePending = false;
+unsigned long lastMqttReconnectAttempt = 0;
+
 struct CustomMessageStore {
   MessageEntry* entries = nullptr;
   String* dates = nullptr;
@@ -238,6 +251,78 @@ void ApplyDefaultConfig() {
   runtimeConfig.messagePreset = MESSAGE_PRESET_NAME;
   runtimeConfig.customMessages = "";
   runtimeConfig.timezoneOffset = DEFAULT_TIMEZONE;
+}
+
+bool IsMqttConfigured() {
+  if (MQTT_BROKER == nullptr) {
+    return false;
+  }
+  if (strlen(MQTT_BROKER) == 0) {
+    return false;
+  }
+  if (strcmp(MQTT_BROKER, "YOUR_MQTT_BROKER") == 0) {
+    return false;
+  }
+  return true;
+}
+
+void HandleMqttMessage(char* topic, byte* payloadBytes, unsigned int length) {
+  if (!mqttCommandTopic.equals(topic)) {
+    return;
+  }
+
+  String payloadString;
+  payloadString.reserve(length + 1);
+  for (unsigned int i = 0; i < length; i++) {
+    payloadString += static_cast<char>(payloadBytes[i]);
+  }
+  payloadString.trim();
+  if (payloadString.length() == 0) {
+    return;
+  }
+  pendingMqttMessage = payloadString;
+  mqttMessagePending = true;
+}
+
+void SetupMqtt() {
+  mqttEnabled = IsMqttConfigured();
+  if (!mqttEnabled) {
+    return;
+  }
+  mqttClientId = String("weatherclock-") + String(ESP.getChipId(), HEX);
+  mqttTopicBase = String(MQTT_TOPIC_PREFIX) + "/" + String(ESP.getChipId(), HEX);
+  mqttCommandTopic = mqttTopicBase + "/command/message";
+  mqttStateTopic = mqttTopicBase + "/state/message";
+
+  mqttClient.setServer(MQTT_BROKER, MQTT_PORT);
+  mqttClient.setCallback(HandleMqttMessage);
+}
+
+void EnsureMqttConnection() {
+  if (!mqttEnabled) {
+    return;
+  }
+  if (WiFi.status() != WL_CONNECTED) {
+    return;
+  }
+  if (mqttClient.connected()) {
+    return;
+  }
+  unsigned long now = millis();
+  if (now - lastMqttReconnectAttempt < kMqttReconnectBackoffMs) {
+    return;
+  }
+  lastMqttReconnectAttempt = now;
+  if (mqttClient.connect(mqttClientId.c_str())) {
+    mqttClient.subscribe(mqttCommandTopic.c_str());
+  }
+}
+
+void PublishMqttState(const String& message) {
+  if (!mqttEnabled || !mqttClient.connected()) {
+    return;
+  }
+  mqttClient.publish(mqttStateTopic.c_str(), message.c_str(), true);
 }
 
 bool LoadRuntimeConfig() {
@@ -810,6 +895,8 @@ void setup(void) {
   WiFi.setAutoReconnect(true);
 
   connectWifi();
+  SetupMqtt();
+  EnsureMqttConnection();
   SetTime();  //sync time and apply dst if needed
   GetWeather();
   StartConfigPortalServer();
@@ -835,6 +922,15 @@ void loop(void) {
   UpdateWiFiStatusIndicator();
   if (configServerRunning) {
     configServer.handleClient();
+  }
+  EnsureMqttConnection();
+  if (mqttEnabled) {
+    mqttClient.loop();
+  }
+  if (mqttMessagePending) {
+    ScrollMsg(pendingMqttMessage, 25);
+    PublishMqttState(pendingMqttMessage);
+    mqttMessagePending = false;
   }
 
   today = nowTime.substring(4, 10);

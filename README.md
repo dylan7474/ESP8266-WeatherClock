@@ -43,6 +43,23 @@ Open `max72LedNodeMCU_Scroll_Working/max72LedNodeMCU_Scroll_Working.ino` in the 
 * **IP address on connect**: after Wi-Fi connects, the display scrolls the assigned IP address once so you can find the device on the network.
 * **Wi-Fi stays connected**: the device keeps Wi-Fi in station mode and will auto-reconnect if the connection drops (LED blinks while reconnecting).
 
+## MQTT message control (optional)
+
+The clock can subscribe to MQTT messages and scroll them on the display. Set your broker details in `max72LedNodeMCU_Scroll_Working/Config.h` to enable it:
+
+```cpp
+const char* MQTT_BROKER = "YOUR_MQTT_BROKER";
+const int MQTT_PORT = 1883;
+const char* MQTT_TOPIC_PREFIX = "weatherclock";
+```
+
+When enabled, the device uses its chip ID to build topics:
+
+* **Command topic:** `<MQTT_TOPIC_PREFIX>/<chipid>/command/message`
+* **State topic:** `<MQTT_TOPIC_PREFIX>/<chipid>/state/message` (retained)
+
+Publish a plain text payload to the command topic and the clock will scroll it once. The last displayed message is published to the state topic so Home Assistant or other clients can track it.
+
 ## Configuration portal
 
 If the clock cannot connect to Wi-Fi, it starts an access point named `WeatherClock-<chipid>`. Connect to that network and visit `http://192.168.4.1` to set Wi-Fi credentials, latitude/longitude, message presets, time zone offset, and custom date messages. Settings are stored on the device and reused on future boots.
