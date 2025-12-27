@@ -9,6 +9,7 @@ This project is an ESP8266-based scrolling weather clock built around MAX7219 LE
 * Aligned message presets with date/message entry pairs to match the portal format.
 * Improved DST auto-update handling during time syncs.
 * Scrolls the assigned IP address after Wi-Fi connects.
+* Calls out the optional MQTT message queue integration for remote message commands.
 
 ## Build
 
