@@ -518,6 +518,10 @@ void connectWifi() {
     }
   }
   Serial.println("\nCONNECTED");
+  IPAddress stationIp = WiFi.localIP();
+  Serial.print("IP address: ");
+  Serial.println(stationIp);
+  ScrollMsg("IP " + stationIp.toString(), 15);
 }
 
 int CalculateDstForUtc(time_t nowUtc) {
