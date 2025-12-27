@@ -1,4 +1,4 @@
-// Ver 10.9.11 (26/12/25)
+// Ver 10.9.12 (26/12/25)
 // Modernized the config portal styling and status messaging
 // Added editable custom date messages in the config portal (stored in config.json)
 // Refactored message presets into date/message entry pairs
