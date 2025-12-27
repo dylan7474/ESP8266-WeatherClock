@@ -41,9 +41,12 @@ Open `max72LedNodeMCU_Scroll_Working/max72LedNodeMCU_Scroll_Working.ino` in the 
 * **UK daylight saving**: the clock recalculates BST/GMT in firmware (last Sunday in March/October at 01:00 UTC) and updates the offset without requiring a reboot.
 * **Time sync on boot**: the clock synchronizes time once during startup and applies any DST adjustment during that sync.
 * **IP address on connect**: after Wi-Fi connects, the display scrolls the assigned IP address once so you can find the device on the network.
+* **Wi-Fi stays connected**: the device keeps Wi-Fi in station mode and will auto-reconnect if the connection drops (LED blinks while reconnecting).
 
 ## Configuration portal
 
 If the clock cannot connect to Wi-Fi, it starts an access point named `WeatherClock-<chipid>`. Connect to that network and visit `http://192.168.4.1` to set Wi-Fi credentials, latitude/longitude, message presets, time zone offset, and custom date messages. Settings are stored on the device and reused on future boots.
+
+When the clock is connected to your network, the same configuration portal is available from the device's assigned IP address.
 
 Custom date messages are entered one per line using the format `Mon DD | Message` (for example `Feb 14 | Happy Valentines Day`). Leave the list empty to continue using the selected preset in `MessagePresets.h`.
