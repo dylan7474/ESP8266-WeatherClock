@@ -489,6 +489,8 @@ void ApplyTimezoneConfiguration() {
 }
 
 String BuildConfigPage() {
+  String chipId = String(ESP.getChipId(), HEX);
+  String mqttTopicRoot = String(MQTT_TOPIC_PREFIX) + "/" + chipId;
   String page = F("<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
                   "<title>Weather Clock Portal</title>"
                   "<style>"
@@ -530,6 +532,13 @@ String BuildConfigPage() {
   page += "<div class='hint'>Use a whole-hour offset from UTC (e.g. -5 for EST, 1 for CET).</div>";
   page += "<label>Custom date messages</label><textarea name='customMessages' placeholder='Jan 1 | Happy New Year'>" + runtimeConfig.customMessages + "</textarea>";
   page += "<div class='hint'>Use one message per line: <strong>Mon DD | Message</strong> (e.g. <strong>Feb 14 | Happy Valentines Day</strong>). Leave empty to use the preset above.</div>";
+  page += "<label>Chip ID</label><input value='" + chipId + "' readonly>";
+  page += "<div class='hint'>Use this Chip ID in Home Assistant MQTT topic names.</div>";
+  page += "<label>MQTT command topic</label><input value='" + mqttTopicRoot + "/command/message' readonly>";
+  page += "<label>MQTT state topic</label><input value='" + mqttTopicRoot + "/state/message' readonly>";
+  if (!IsMqttConfigured()) {
+    page += "<div class='hint'>MQTT is disabled until you set MQTT_BROKER in Config.h.</div>";
+  }
   page += "<button type='submit'>Save</button></form><div class='status'>Signals will refresh after saving.</div></div></div></body></html>";
   return page;
 }
