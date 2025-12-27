@@ -47,4 +47,6 @@ Open `max72LedNodeMCU_Scroll_Working/max72LedNodeMCU_Scroll_Working.ino` in the 
 
 If the clock cannot connect to Wi-Fi, it starts an access point named `WeatherClock-<chipid>`. Connect to that network and visit `http://192.168.4.1` to set Wi-Fi credentials, latitude/longitude, message presets, time zone offset, and custom date messages. Settings are stored on the device and reused on future boots.
 
+When the clock is connected to your network, the same configuration portal is available from the device's assigned IP address.
+
 Custom date messages are entered one per line using the format `Mon DD | Message` (for example `Feb 14 | Happy Valentines Day`). Leave the list empty to continue using the selected preset in `MessagePresets.h`.

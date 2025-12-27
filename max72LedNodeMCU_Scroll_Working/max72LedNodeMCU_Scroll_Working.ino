@@ -201,6 +201,7 @@ struct RuntimeConfig {
 RuntimeConfig runtimeConfig;
 ESP8266WebServer configServer(80);
 bool configPortalSaved = false;
+bool configServerRunning = false;
 const char* kConfigPath = "/config.json";
 
 struct CustomMessageStore {
@@ -480,6 +481,16 @@ void HandleConfigSave() {
   configServer.send(200, "text/html", "<html><body style='font-family:Arial;background:#05070f;color:#e6f0ff;padding:20px;'><h1>Saved</h1><p>Settings updated. You can close this page.</p></body></html>");
 }
 
+void StartConfigPortalServer() {
+  if (configServerRunning) {
+    return;
+  }
+  configServer.on("/", HTTP_GET, HandleConfigRoot);
+  configServer.on("/save", HTTP_POST, HandleConfigSave);
+  configServer.begin();
+  configServerRunning = true;
+}
+
 void StartConfigPortal() {
   configPortalSaved = false;
   WiFi.mode(WIFI_AP_STA);
@@ -492,9 +503,7 @@ void StartConfigPortal() {
   Serial.println(apIp);
   ScrollMsg("Config portal at 192.168.4.1", 15);
 
-  configServer.on("/", HTTP_GET, HandleConfigRoot);
-  configServer.on("/save", HTTP_POST, HandleConfigSave);
-  configServer.begin();
+  StartConfigPortalServer();
 
   while (!configPortalSaved) {
     configServer.handleClient();
@@ -502,6 +511,7 @@ void StartConfigPortal() {
   }
 
   configServer.stop();
+  configServerRunning = false;
   WiFi.softAPdisconnect(true);
   WiFi.mode(WIFI_STA);
 }
@@ -802,6 +812,7 @@ void setup(void) {
   connectWifi();
   SetTime();  //sync time and apply dst if needed
   GetWeather();
+  StartConfigPortalServer();
 
   // Added for Version 10.4
   bmp280.begin(BMP280_I2C_ALT_ADDR);
@@ -822,6 +833,9 @@ void setup(void) {
 void loop(void) {
   MonitorWiFiConnection();
   UpdateWiFiStatusIndicator();
+  if (configServerRunning) {
+    configServer.handleClient();
+  }
 
   today = nowTime.substring(4, 10);
 
