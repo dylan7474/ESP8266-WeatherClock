@@ -3,6 +3,7 @@
 // Added editable custom date messages in the config portal (stored in config.json)
 // Refactored message presets into date/message entry pairs
 // Improved DST auto-update handling during clock syncs
+// Scroll the assigned IP address after WiFi connects
 //
 // Ver 10.9.10 (29/08/22)
 // Fixed birthday messages, added a few more and added 10 day reminders
