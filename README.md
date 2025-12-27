@@ -39,6 +39,7 @@ Open `max72LedNodeMCU_Scroll_Working/max72LedNodeMCU_Scroll_Working.ino` in the 
 * **Display behavior**: choose a preset in `Config.h` (`MESSAGE_PRESET_NAME`) or in the config portal, and edit presets in `MessagePresets.h` to customize date-based messages using `{ "Mon DD", "Message" }` entry pairs.
 * **Time zone**: set the default UTC offset in `Config.h` (`DEFAULT_TIMEZONE`) or update it in the config portal.
 * **UK daylight saving**: the clock recalculates BST/GMT in firmware (last Sunday in March/October at 01:00 UTC) and updates the offset without requiring a reboot.
+* **Time sync on boot**: the clock synchronizes time once during startup and applies any DST adjustment during that sync.
 
 ## Configuration portal
 

@@ -26,7 +26,7 @@
 // Ver 10.9.6 (02/11/21)
 // Adding code to work out clock change - used lookup table rather than date logic - was just easier to program!
 // Currently have 5 years programmed in 2021-2040
-// now gets the time twice - once to get the date and set the dst state, second to get the right time based on new dst
+// now applies DST during time sync without a second sync
 // Currently this will update dst when it syncs the clock once per hour - not necessarily on the hour.
 // To get it to do the change on the hour would need to check the date each cycle
 // Not sure if this would cause a LOOP with the dst switching back an hour over midnight (if thats how it would work)
@@ -756,8 +756,7 @@ void setup(void) {
   WiFi.setAutoReconnect(true);
 
   connectWifi();
-  SetTime();  //run once to get date to determine dst state
-  SetTime();  //run again to set time with correct dst
+  SetTime();  //sync time and apply dst if needed
   GetWeather();
   WiFi.disconnect();
 
