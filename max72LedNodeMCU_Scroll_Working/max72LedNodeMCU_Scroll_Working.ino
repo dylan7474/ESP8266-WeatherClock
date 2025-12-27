@@ -161,6 +161,12 @@ String StoredWeatherTemperature;
 const char* ESP_HOST_NAME = "esp-" + ESP.getFlashChipId();
 
 int bigcount = 0;
+const unsigned long kWiFiReconnectBackoffMs = 30000;
+const unsigned long kWiFiStatusBlinkMs = 500;
+const int kWiFiStatusLedPin = LED_BUILTIN;
+unsigned long lastWiFiReconnectAttempt = 0;
+unsigned long lastWiFiStatusBlink = 0;
+bool wifiStatusLedOn = false;
 
 String payload;
 boolean StartupState = true;
@@ -476,7 +482,7 @@ void HandleConfigSave() {
 
 void StartConfigPortal() {
   configPortalSaved = false;
-  WiFi.mode(WIFI_AP);
+  WiFi.mode(WIFI_AP_STA);
   String apName = String(DEVICE_NAME) + "-" + String(ESP.getChipId(), HEX);
   WiFi.softAP(apName.c_str());
   IPAddress apIp = WiFi.softAPIP();
@@ -498,6 +504,37 @@ void StartConfigPortal() {
   configServer.stop();
   WiFi.softAPdisconnect(true);
   WiFi.mode(WIFI_STA);
+}
+
+void MonitorWiFiConnection() {
+  if (WiFi.status() == WL_CONNECTED) {
+    return;
+  }
+
+  unsigned long now = millis();
+  if (lastWiFiReconnectAttempt != 0 && now - lastWiFiReconnectAttempt < kWiFiReconnectBackoffMs) {
+    return;
+  }
+
+  Serial.println("WiFi disconnected, attempting reconnect");
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(runtimeConfig.ssid.c_str(), runtimeConfig.password.c_str());
+  lastWiFiReconnectAttempt = now;
+}
+
+void UpdateWiFiStatusIndicator() {
+  if (WiFi.status() == WL_CONNECTED) {
+    digitalWrite(kWiFiStatusLedPin, LOW);
+    wifiStatusLedOn = true;
+    return;
+  }
+
+  unsigned long now = millis();
+  if (now - lastWiFiStatusBlink >= kWiFiStatusBlinkMs) {
+    lastWiFiStatusBlink = now;
+    wifiStatusLedOn = !wifiStatusLedOn;
+    digitalWrite(kWiFiStatusLedPin, wifiStatusLedOn ? LOW : HIGH);
+  }
 }
 
 void connectWifi() {
@@ -740,6 +777,8 @@ void setup(void) {
   Serial.println(Version);
   P.begin();
   ScrollMsg(Version, 15);
+  pinMode(kWiFiStatusLedPin, OUTPUT);
+  digitalWrite(kWiFiStatusLedPin, HIGH);
 
   LoadRuntimeConfig();
   ApplyMessageConfiguration();
@@ -763,7 +802,6 @@ void setup(void) {
   connectWifi();
   SetTime();  //sync time and apply dst if needed
   GetWeather();
-  WiFi.disconnect();
 
   // Added for Version 10.4
   bmp280.begin(BMP280_I2C_ALT_ADDR);
@@ -782,6 +820,8 @@ void setup(void) {
 }
 
 void loop(void) {
+  MonitorWiFiConnection();
+  UpdateWiFiStatusIndicator();
 
   today = nowTime.substring(4, 10);
 
@@ -839,7 +879,6 @@ void loop(void) {
     connectWifi();
     //SetTime();
     GetWeather();
-    WiFi.disconnect();
     PrintMsg(nowTime.substring(10, 16));  //Display Time  May be able to start at 11 (might be a space)
     bigcount = 0;
   }
@@ -851,7 +890,6 @@ void loop(void) {
     connectWifi();
     SetTime();
     //GetWeather();
-    WiFi.disconnect();
     PrintMsg(nowTime.substring(10, 16));  //Display Time  May be able to start at 11 (might be a space)
     bigcount = 0;
   }
