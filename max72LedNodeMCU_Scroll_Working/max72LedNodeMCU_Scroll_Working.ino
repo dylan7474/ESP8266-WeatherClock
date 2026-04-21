@@ -128,6 +128,7 @@
 #include <MD_MAX72xx.h>
 #include <SPI.h>
 #include <ESP8266WiFi.h>
+#include <WiFiClientSecureBearSSL.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <time.h>
@@ -824,14 +825,20 @@ void GetWeather() {
 
   Serial.println("Getting Weather");
   ScrollMsg("Getting Weather", 15);
-  String url = "http://api.openweathermap.org/data/2.5/weather?lat=" + runtimeConfig.latitude + "&lon=" + runtimeConfig.longitude
+  String url = "https://api.openweathermap.org/data/2.5/weather?lat=" + runtimeConfig.latitude + "&lon=" + runtimeConfig.longitude
                + "&units=metric&APPID=" + WEATHER_API_KEY;
-  WiFiClient client;
+  BearSSL::WiFiClientSecure client;
+  client.setInsecure();
   HTTPClient http;
+  http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
+  http.setTimeout(15000);
   http.begin(client, url);    //Specify the URL
   int httpCode = http.GET();  //Make the request
+  Serial.print("Weather HTTP code: ");
+  Serial.println(httpCode);
   if (httpCode > 0) {         //Check for the returning code
     payload = http.getString();
+    payload.trim();
 
     // When using some networks (seen on 4G), the payload can include chunk metadata
     // before/after the JSON body (e.g. "1e0" before the first '{').
@@ -839,9 +846,13 @@ void GetWeather() {
     int jsonStart = payload.indexOf('{');
     int jsonEnd = payload.lastIndexOf('}');
 
-    Serial.print(">>>>>>>> FIRST payload CHAR IS ");
-    Serial.print(payload.substring(0, 1));
-    Serial.println(" >>>>>>>>>>");
+    if (payload.length() > 0) {
+      Serial.print(">>>>>>>> FIRST payload CHAR IS ");
+      Serial.print(payload.substring(0, 1));
+      Serial.println(" >>>>>>>>>>");
+    } else {
+      Serial.println("Weather payload was empty");
+    }
 
     if (jsonStart > 0 || jsonEnd < payload.length() - 1) {
       if (jsonStart >= 0 && jsonEnd > jsonStart) {
@@ -851,7 +862,8 @@ void GetWeather() {
       ScrollMsg("4G mode", 15);
     }
   } else {
-    Serial.println("Error on Weather HTTP request");
+    Serial.print("Error on Weather HTTP request: ");
+    Serial.println(http.errorToString(httpCode));
     http.end();
     return;
   }
