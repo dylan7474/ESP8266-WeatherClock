@@ -647,9 +647,15 @@ void UpdateWiFiStatusIndicator() {
   }
 }
 
-void connectWifi() {
+bool connectWifi(bool allowConfigPortal) {
   WiFi.mode(WIFI_STA);
+  const int maxCycles = allowConfigPortal ? -1 : 3;
+  int cycles = 0;
   while (WiFi.status() != WL_CONNECTED) {
+    if (!allowConfigPortal && maxCycles >= 0 && cycles >= maxCycles) {
+      Serial.println("WiFi reconnect timeout, continuing without network");
+      return false;
+    }
     Serial.print("Connecting to WiFi ");
     Serial.println(runtimeConfig.ssid);
     WiFi.begin(runtimeConfig.ssid.c_str(), runtimeConfig.password.c_str());
@@ -662,14 +668,18 @@ void connectWifi() {
     }
     if (WiFi.status() != WL_CONNECTED) {
       Serial.println("\nWiFi connect failed");
-      StartConfigPortal();
+      if (allowConfigPortal) {
+        StartConfigPortal();
+      }
     }
+    cycles++;
   }
   Serial.println("\nCONNECTED");
   IPAddress stationIp = WiFi.localIP();
   Serial.print("IP address: ");
   Serial.println(stationIp);
   ScrollMsg("IP " + stationIp.toString(), 15);
+  return true;
 }
 
 int CalculateDstForUtc(time_t nowUtc) {
@@ -732,6 +742,10 @@ bool ApplyDstIfNeeded(time_t nowUtc) {
 }
 
 void SetTime(void) {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("Skipping time sync: WiFi disconnected");
+    return;
+  }
   // In most cases it's best to use pool.ntp.org to find an NTP server (or 0.pool.ntp.org, 1.pool.ntp.org
   // , etc if you need multiple server names)
   // for list : https://gist.github.com/mutin-sa/eea1c396b1e610a2da1e5550d94b0453
@@ -741,11 +755,21 @@ void SetTime(void) {
   Serial.print("Synchronising Time : ");
 
   nowTime = "";  // have to reset this variable to tell if the time read was seccessful
+  unsigned long syncStart = millis();
+  const unsigned long maxSyncMs = 60000;
 
   while (nowTime.substring(20, 21) != "2")  //Think this check for the year to check if time has been set
   {
+    if (millis() - syncStart >= maxSyncMs) {
+      Serial.println("\nTime sync timeout, keeping previous time");
+      return;
+    }
     //Serial.println("\nACTUALLY UPDATING THE TIME\n");
     while (!time(nullptr)) {
+      if (millis() - syncStart >= maxSyncMs) {
+        Serial.println("\nTime sync timeout, keeping previous time");
+        return;
+      }
       Serial.print(".");
       delay(1000);
     }
@@ -909,7 +933,7 @@ void setup(void) {
   WiFi.persistent(false);
   WiFi.setAutoReconnect(true);
 
-  connectWifi();
+  connectWifi(true);
   SetupMqtt();
   EnsureMqttConnection();
   SetTime();  //sync time and apply dst if needed
@@ -1005,9 +1029,12 @@ void loop(void) {
   {
     ScrollMsg("15 minute weather update", 30);
     Serial.println("15 minute weather update");
-    connectWifi();
-    //SetTime();
-    GetWeather();
+    if (connectWifi(false)) {
+      //SetTime();
+      GetWeather();
+    } else {
+      Serial.println("Skipping weather update: WiFi unavailable");
+    }
     PrintMsg(nowTime.substring(10, 16));  //Display Time  May be able to start at 11 (might be a space)
     bigcount = 0;
   }
@@ -1016,8 +1043,11 @@ void loop(void) {
   {
     ScrollMsg("12 Hourly time update", 30);
     Serial.println("12 Hourly time update");
-    connectWifi();
-    SetTime();
+    if (connectWifi(false)) {
+      SetTime();
+    } else {
+      Serial.println("Skipping time update: WiFi unavailable");
+    }
     //GetWeather();
     PrintMsg(nowTime.substring(10, 16));  //Display Time  May be able to start at 11 (might be a space)
     bigcount = 0;

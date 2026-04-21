@@ -52,6 +52,7 @@ Open `max72LedNodeMCU_Scroll_Working/max72LedNodeMCU_Scroll_Working.ino` in the 
 * **Time sync on boot**: the clock synchronizes time once during startup and applies any DST adjustment during that sync.
 * **IP address on connect**: after Wi-Fi connects, the display scrolls the assigned IP address once so you can find the device on the network.
 * **Wi-Fi stays connected**: the device keeps Wi-Fi in station mode and will auto-reconnect if the connection drops (LED blinks while reconnecting).
+* **Overnight router reboots**: periodic weather/time refresh now uses bounded reconnect/time-sync attempts, so temporary Wi-Fi outages won't trap the firmware in blocking loops.
 
 ## MQTT message control (optional)
 
