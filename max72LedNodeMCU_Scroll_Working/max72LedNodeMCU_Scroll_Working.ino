@@ -147,22 +147,6 @@ BMP280_DEV bmp280;
 #include "Config.h"
 #include "MessagePresets.h"
 
-#ifndef MQTT_BROKER
-#define MQTT_BROKER "YOUR_MQTT_BROKER"
-#endif
-
-#ifndef MQTT_PORT
-#define MQTT_PORT 1883
-#endif
-
-#ifndef MQTT_TOPIC_PREFIX
-#define MQTT_TOPIC_PREFIX "weatherclock"
-#endif
-
-#ifndef WEATHER_API_KEY
-#define WEATHER_API_KEY "YOUR_OPENWEATHER_API_KEY"
-#endif
-
 #define HARDWARE_TYPE MD_MAX72XX::FC16_HW
 #define MAX_DEVICES 4
 #define CLK_PIN 14
@@ -847,7 +831,7 @@ void GetWeather() {
   Serial.println("Getting Weather");
   ScrollMsg("Getting Weather", 15);
   String url = "https://api.openweathermap.org/data/2.5/weather?lat=" + runtimeConfig.latitude + "&lon=" + runtimeConfig.longitude
-               + "&units=metric&APPID=" + WEATHER_API_KEY;
+               + "&units=metric&APPID=" + String(OPENWEATHER_API_KEY);
   BearSSL::WiFiClientSecure client;
   client.setInsecure();
   HTTPClient http;
