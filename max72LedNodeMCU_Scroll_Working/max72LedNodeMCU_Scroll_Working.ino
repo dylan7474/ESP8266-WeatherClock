@@ -1,3 +1,7 @@
+// Ver 8.9.14 (21/04/26)
+// Updated reported firmware version string shown in startup display
+// Updated version history comments to include this release
+//
 // Ver 10.9.13 (08/03/25)
 // Documented MQTT integration details (Config.h broker settings and command/state topics)
 //
@@ -162,7 +166,7 @@ BMP280_DEV bmp280;
 
 MD_Parola P = MD_Parola(HARDWARE_TYPE, CS_PIN, MAX_DEVICES);
 
-String Version = "max72LedNodeMCU_Scroll_Working_v10.9.13";
+String Version = "max72LedNodeMCU_Scroll_Working_v8.9.14";
 float TempScale = 0.78;
 int timezone = 0;
 int dst = 0;  //dst = 0 for GMT , dst = 1 for bst
