@@ -14,7 +14,7 @@ This project is an ESP8266-based scrolling weather clock built around MAX7219 LE
 * Scrolls the assigned IP address after Wi-Fi connects.
 * Calls out the optional MQTT message queue integration for remote message commands.
 * Hardened weather payload parsing so restart-time API responses with extra transport bytes no longer decode as `0C Wind 0 m/s`.
-* Increased weather JSON parsing headroom and added a sketch-level `WEATHER_API_KEY` placeholder define for easier API key replacement.
+* Increased weather JSON parsing headroom and centralized custom credentials/settings in `Config.h` (Wi-Fi, OpenWeather, MQTT broker/topic settings).
 * Switched weather API fetches to HTTPS with redirect support and explicit empty-payload diagnostics to prevent `EmptyInput` parse failures.
 
 ## Build
@@ -44,12 +44,12 @@ make FQBN=esp8266:esp8266:generic BUILD_DIR=build
 
 ### Arduino build
 
-Open `max72LedNodeMCU_Scroll_Working/max72LedNodeMCU_Scroll_Working.ino` in the Arduino IDE or use `arduino-cli` and compile for **Generic ESP8266 Module** or **NodeMCU 1.0**. Update `max72LedNodeMCU_Scroll_Working/Config.h` with your Wi-Fi settings and set `WEATHER_API_KEY` in the sketch (default is `YOUR_OPENWEATHER_API_KEY`) before flashing.
+Open `max72LedNodeMCU_Scroll_Working/max72LedNodeMCU_Scroll_Working.ino` in the Arduino IDE or use `arduino-cli` and compile for **Generic ESP8266 Module** or **NodeMCU 1.0**. Update `max72LedNodeMCU_Scroll_Working/Config.h` with your Wi-Fi, OpenWeather API key, and optional MQTT settings before flashing.
 
 ## Basic controls
 
 * **Power on**: the device boots, connects to Wi-Fi, and begins scrolling the clock and weather messages.
-* **Wi-Fi credentials**: update `max72LedNodeMCU_Scroll_Working_v10.9.10/Config.h` with your Wi-Fi + OpenWeather API key before flashing.
+* **Wi-Fi credentials**: update `max72LedNodeMCU_Scroll_Working/Config.h` with your Wi-Fi + OpenWeather API key before flashing.
 * **Location settings**: update the default latitude/longitude in `Config.h` or use the on-device web portal to save them.
 * **Display behavior**: choose a preset in `Config.h` (`MESSAGE_PRESET_NAME`) or in the config portal, and edit presets in `MessagePresets.h` to customize date-based messages using `{ "Mon DD", "Message" }` entry pairs.
 * **Time zone**: set the default UTC offset in `Config.h` (`DEFAULT_TIMEZONE`) or update it in the config portal.
@@ -69,7 +69,7 @@ The clock can subscribe to MQTT messages and scroll them on the display. Set you
 #define MQTT_TOPIC_PREFIX "weatherclock"
 ```
 
-If these defines are omitted in a local `Config.h`, firmware now falls back to placeholder defaults so the sketch still compiles with MQTT disabled.
+Leave `MQTT_BROKER` as `YOUR_MQTT_BROKER` (or an empty value) in `Config.h` to keep MQTT disabled.
 
 When enabled, the device uses its chip ID to build topics:
 
