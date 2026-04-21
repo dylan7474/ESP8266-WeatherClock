@@ -157,6 +157,7 @@ MD_Parola P = MD_Parola(HARDWARE_TYPE, CS_PIN, MAX_DEVICES);
 
 String Version = "max72LedNodeMCU_Scroll_Working_v8.9.15";
 float TempScale = 0.78;
+String batteryStatus = "Bat ---";
 int timezone = 0;
 int dst = 0;  //dst = 0 for GMT , dst = 1 for bst
 String nowTime;
@@ -948,6 +949,13 @@ void PrintMsg(String messageString) {
   }
 }
 
+void UpdateBatteryStatus() {
+  int rawBattery = analogRead(A0);
+  int batteryPercent = map(rawBattery, 0, 1023, 0, 100);
+  batteryPercent = constrain(batteryPercent, 0, 100);
+  batteryStatus = "Bat " + String(batteryPercent) + "%";
+}
+
 void setup(void) {
   Serial.begin(115200);
   Serial.println("\n");
@@ -997,6 +1005,9 @@ void setup(void) {
   Serial.println("BMP280 data");
   Serial.println(temperature);
   Serial.println(temperature * TempScale);
+
+  UpdateBatteryStatus();
+  ScrollMsg(batteryStatus, 20);
 }
 
 void loop(void) {
@@ -1015,6 +1026,8 @@ void loop(void) {
     PublishMqttState(storedMqttMessage);
     mqttMessagePending = false;
   }
+
+  UpdateBatteryStatus();
 
   today = nowTime.substring(4, 10);
 
@@ -1043,6 +1056,7 @@ void loop(void) {
     //PrintMsg(tempString);
     ScrollMsg(StoredWeatherDescription, 25);  //Display Weather Conditions
     PrintMsg(tempString);                     //Display the temperature again as I always miss it!
+    PrintMsg(batteryStatus);                 //Display battery status
     //PrintMsg(nowTime.substring(10,16));                          //Display Time
 
     //Put some code to display extra messages here
