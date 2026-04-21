@@ -142,6 +142,18 @@ BMP280_DEV bmp280;
 #include "Config.h"
 #include "MessagePresets.h"
 
+#ifndef MQTT_BROKER
+#define MQTT_BROKER "YOUR_MQTT_BROKER"
+#endif
+
+#ifndef MQTT_PORT
+#define MQTT_PORT 1883
+#endif
+
+#ifndef MQTT_TOPIC_PREFIX
+#define MQTT_TOPIC_PREFIX "weatherclock"
+#endif
+
 #define HARDWARE_TYPE MD_MAX72XX::FC16_HW
 #define MAX_DEVICES 4
 #define CLK_PIN 14
