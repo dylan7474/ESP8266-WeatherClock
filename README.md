@@ -14,6 +14,7 @@ This project is an ESP8266-based scrolling weather clock built around MAX7219 LE
 * Scrolls the assigned IP address after Wi-Fi connects.
 * Calls out the optional MQTT message queue integration for remote message commands.
 * Hardened weather payload parsing so restart-time API responses with extra transport bytes no longer decode as `0C Wind 0 m/s`.
+* Increased weather JSON parsing headroom and added a sketch-level `WEATHER_API_KEY` placeholder define for easier API key replacement.
 
 ## Build
 
@@ -42,7 +43,7 @@ make FQBN=esp8266:esp8266:generic BUILD_DIR=build
 
 ### Arduino build
 
-Open `max72LedNodeMCU_Scroll_Working/max72LedNodeMCU_Scroll_Working.ino` in the Arduino IDE or use `arduino-cli` and compile for **Generic ESP8266 Module** or **NodeMCU 1.0**. Update `max72LedNodeMCU_Scroll_Working/Config.h` with your Wi-Fi and OpenWeather API key before flashing.
+Open `max72LedNodeMCU_Scroll_Working/max72LedNodeMCU_Scroll_Working.ino` in the Arduino IDE or use `arduino-cli` and compile for **Generic ESP8266 Module** or **NodeMCU 1.0**. Update `max72LedNodeMCU_Scroll_Working/Config.h` with your Wi-Fi settings and set `WEATHER_API_KEY` in the sketch (default is `YOUR_OPENWEATHER_API_KEY`) before flashing.
 
 ## Basic controls
 

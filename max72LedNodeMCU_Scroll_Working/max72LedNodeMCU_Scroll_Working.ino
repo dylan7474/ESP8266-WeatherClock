@@ -158,6 +158,10 @@ BMP280_DEV bmp280;
 #define MQTT_TOPIC_PREFIX "weatherclock"
 #endif
 
+#ifndef WEATHER_API_KEY
+#define WEATHER_API_KEY "YOUR_OPENWEATHER_API_KEY"
+#endif
+
 #define HARDWARE_TYPE MD_MAX72XX::FC16_HW
 #define MAX_DEVICES 4
 #define CLK_PIN 14
@@ -821,7 +825,7 @@ void GetWeather() {
   Serial.println("Getting Weather");
   ScrollMsg("Getting Weather", 15);
   String url = "http://api.openweathermap.org/data/2.5/weather?lat=" + runtimeConfig.latitude + "&lon=" + runtimeConfig.longitude
-               + "&units=metric&APPID=" + OPENWEATHER_API_KEY;
+               + "&units=metric&APPID=" + WEATHER_API_KEY;
   WiFiClient client;
   HTTPClient http;
   http.begin(client, url);    //Specify the URL
@@ -853,7 +857,7 @@ void GetWeather() {
   }
   http.end();
 
-  const size_t capacity = JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(0) + JSON_OBJECT_SIZE(1) + 2 * JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(4) + 2 * JSON_OBJECT_SIZE(5) + JSON_OBJECT_SIZE(14) + 270;
+  const size_t capacity = 1536;
   DynamicJsonDocument doc(capacity);
 
   int payloadlen = payload.length() + 1;
@@ -866,6 +870,7 @@ void GetWeather() {
   if (jsonError) {
     Serial.print("Weather JSON parse failed: ");
     Serial.println(jsonError.c_str());
+    Serial.println(payload);
     return;
   }
 
