@@ -813,7 +813,7 @@ void SetTime(void) {
 
 void GetWeather() {
 
-  // Connection string should be http://api.openweathermap.org/data/2.5/weather?lat=54.54&lon=-1.08&APPID=c848eb234e72b8e3808ab65d17d05231
+  // Connection string should be http://api.openweathermap.org/data/2.5/weather?lat=54.54&lon=-1.08&APPID=YOUR_OPENWEATHER_API_KEY
   // Should output something like
   // {"coord":{"lon":-1.08,"lat":54.54},"weather":[{"id":500,"main":"Rain","description":"light rain","icon":"10d"}],"base":"stations","main":{"temp":283.91,"pressure":994,"humidity":71,"temp_min":282.15,"temp_max":285.93},"visibility":10000,"wind":{"speed":3.6,"deg":240},"clouds":{"all":20},"dt":1571396447,"sys":{"type":1,"id":1428,"message":0.0093,"country":"GB","sunrise":1571380671,"sunset":1571418055},"timezone":3600,"id":7291323,"name":"Guisborough","cod":200}
   // json parsed from https://arduinojson.org/v6/assistant/
