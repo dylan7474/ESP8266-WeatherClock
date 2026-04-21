@@ -78,6 +78,8 @@ When enabled, the device uses its chip ID to build topics:
 
 Publish a plain text payload to the command topic and the clock will store it, then scroll it after each weather update (similar to the custom date messages). The latest stored message is published to the state topic so Home Assistant or other clients can track it.
 
+When connected over USB serial, the firmware now logs MQTT connection attempts/results and command-topic subscription success/failure, making it easier to troubleshoot broker connectivity.
+
 ## Configuration portal
 
 If the clock cannot connect to Wi-Fi, it starts an access point named `WeatherClock-<chipid>`. Connect to that network and visit `http://192.168.4.1` to set Wi-Fi credentials, latitude/longitude, message presets, time zone offset, and custom date messages. Settings are stored on the device and reused on future boots.

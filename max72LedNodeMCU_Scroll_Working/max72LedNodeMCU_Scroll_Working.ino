@@ -314,8 +314,13 @@ void HandleMqttMessage(char* topic, byte* payloadBytes, unsigned int length) {
 void SetupMqtt() {
   mqttEnabled = IsMqttConfigured();
   if (!mqttEnabled) {
+    Serial.println("MQTT disabled: configure MQTT_BROKER in Config.h to enable message queue connection");
     return;
   }
+  Serial.print("MQTT enabled. Broker: ");
+  Serial.print(MQTT_BROKER);
+  Serial.print(":");
+  Serial.println(MQTT_PORT);
   mqttClientId = String("weatherclock-") + String(ESP.getChipId(), HEX);
   mqttTopicBase = String(MQTT_TOPIC_PREFIX) + "/" + String(ESP.getChipId(), HEX);
   mqttCommandTopic = mqttTopicBase + "/command/message";
@@ -340,8 +345,24 @@ void EnsureMqttConnection() {
     return;
   }
   lastMqttReconnectAttempt = now;
+  Serial.print("MQTT connecting as ");
+  Serial.print(mqttClientId);
+  Serial.print(" to ");
+  Serial.print(MQTT_BROKER);
+  Serial.print(":");
+  Serial.println(MQTT_PORT);
   if (mqttClient.connect(mqttClientId.c_str())) {
-    mqttClient.subscribe(mqttCommandTopic.c_str());
+    Serial.println("MQTT connected successfully");
+    if (mqttClient.subscribe(mqttCommandTopic.c_str())) {
+      Serial.print("MQTT subscribed to command topic: ");
+      Serial.println(mqttCommandTopic);
+    } else {
+      Serial.print("MQTT subscribe failed for command topic: ");
+      Serial.println(mqttCommandTopic);
+    }
+  } else {
+    Serial.print("MQTT connection failed, state=");
+    Serial.println(mqttClient.state());
   }
 }
 
