@@ -15,6 +15,7 @@ This project is an ESP8266-based scrolling weather clock built around MAX7219 LE
 * Calls out the optional MQTT message queue integration for remote message commands.
 * Hardened weather payload parsing so restart-time API responses with extra transport bytes no longer decode as `0C Wind 0 m/s`.
 * Increased weather JSON parsing headroom and added a sketch-level `WEATHER_API_KEY` placeholder define for easier API key replacement.
+* Switched weather API fetches to HTTPS with redirect support and explicit empty-payload diagnostics to prevent `EmptyInput` parse failures.
 
 ## Build
 
