@@ -20,3 +20,17 @@ const int DEFAULT_TIMEZONE = 0;
 
 // Device label used for the configuration portal SSID.
 const char* DEVICE_NAME = "WeatherClock";
+
+// MQTT settings for external message control (optional).
+// Define these values to enable MQTT command/state topics.
+#ifndef MQTT_BROKER
+#define MQTT_BROKER "YOUR_MQTT_BROKER"
+#endif
+
+#ifndef MQTT_PORT
+#define MQTT_PORT 1883
+#endif
+
+#ifndef MQTT_TOPIC_PREFIX
+#define MQTT_TOPIC_PREFIX "weatherclock"
+#endif

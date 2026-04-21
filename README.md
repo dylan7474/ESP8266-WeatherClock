@@ -59,10 +59,12 @@ Open `max72LedNodeMCU_Scroll_Working/max72LedNodeMCU_Scroll_Working.ino` in the 
 The clock can subscribe to MQTT messages and scroll them on the display. Set your broker details in `max72LedNodeMCU_Scroll_Working/Config.h` to enable it:
 
 ```cpp
-const char* MQTT_BROKER = "YOUR_MQTT_BROKER";
-const int MQTT_PORT = 1883;
-const char* MQTT_TOPIC_PREFIX = "weatherclock";
+#define MQTT_BROKER "YOUR_MQTT_BROKER"
+#define MQTT_PORT 1883
+#define MQTT_TOPIC_PREFIX "weatherclock"
 ```
+
+If these defines are omitted in a local `Config.h`, firmware now falls back to placeholder defaults so the sketch still compiles with MQTT disabled.
 
 When enabled, the device uses its chip ID to build topics:
 

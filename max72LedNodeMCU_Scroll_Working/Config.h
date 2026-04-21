@@ -23,6 +23,14 @@ const char* DEVICE_NAME = "WeatherClock";
 
 // MQTT settings for external message control (optional).
 // Set MQTT_BROKER to your broker hostname/IP to enable MQTT.
-const char* MQTT_BROKER = "YOUR_MQTT_BROKER";
-const int MQTT_PORT = 1883;
-const char* MQTT_TOPIC_PREFIX = "weatherclock";
+#ifndef MQTT_BROKER
+#define MQTT_BROKER "YOUR_MQTT_BROKER"
+#endif
+
+#ifndef MQTT_PORT
+#define MQTT_PORT 1883
+#endif
+
+#ifndef MQTT_TOPIC_PREFIX
+#define MQTT_TOPIC_PREFIX "weatherclock"
+#endif
