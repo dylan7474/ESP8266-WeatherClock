@@ -4,6 +4,7 @@ This project is an ESP8266-based scrolling weather clock built around MAX7219 LE
 
 ## Recent updates (v8.9.15)
 
+* Added battery status polling on boot and once per loop cycle, and included the battery readout in the regular display rotation.
 * Incremented the firmware-reported version string to `v8.9.15` for this release.
 * Updated the firmware-reported version string to `v8.9.14`, including the startup display text.
 * Documented MQTT broker/topic integration details in the firmware header comments.
@@ -56,6 +57,7 @@ Open `max72LedNodeMCU_Scroll_Working/max72LedNodeMCU_Scroll_Working.ino` in the 
 * **UK daylight saving**: the clock recalculates BST/GMT in firmware (last Sunday in March/October at 01:00 UTC) and updates the offset without requiring a reboot.
 * **Time sync on boot**: the clock synchronizes time once during startup and applies any DST adjustment during that sync.
 * **IP address on connect**: after Wi-Fi connects, the display scrolls the assigned IP address once so you can find the device on the network.
+* **Battery status**: the firmware now samples `A0` at boot and once per loop cycle, then shows a `Bat XX%` message in the regular weather/info display block.
 * **Wi-Fi stays connected**: the device keeps Wi-Fi in station mode and will auto-reconnect if the connection drops (LED blinks while reconnecting).
 * **Overnight router reboots**: periodic weather/time refresh now uses bounded reconnect/time-sync attempts, so temporary Wi-Fi outages won't trap the firmware in blocking loops.
 
