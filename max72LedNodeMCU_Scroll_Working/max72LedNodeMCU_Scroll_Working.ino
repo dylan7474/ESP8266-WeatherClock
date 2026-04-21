@@ -1,5 +1,5 @@
-// Ver 8.9.14 (21/04/26)
-// Updated reported firmware version string shown in startup display
+// Ver 8.9.15 (21/04/26)
+// Incremented reported firmware version string shown in startup display
 // Updated version history comments to include this release
 //
 // Ver 10.9.13 (08/03/25)
@@ -166,7 +166,7 @@ BMP280_DEV bmp280;
 
 MD_Parola P = MD_Parola(HARDWARE_TYPE, CS_PIN, MAX_DEVICES);
 
-String Version = "max72LedNodeMCU_Scroll_Working_v8.9.14";
+String Version = "max72LedNodeMCU_Scroll_Working_v8.9.15";
 float TempScale = 0.78;
 int timezone = 0;
 int dst = 0;  //dst = 0 for GMT , dst = 1 for bst
@@ -829,27 +829,27 @@ void GetWeather() {
   if (httpCode > 0) {         //Check for the returning code
     payload = http.getString();
 
-    //When using 4G this payload seems to have an additional string at the beginning which is thowing off the decode
-    //1e0
-    //{"coord"
-    // Instead just
-    // {"coord"
-    // Also seen 1e3 so looks like the number changes
-    // need to be able to skip over this if the start of the payload is not a {
-
-    int payloadlen = payload.length() - 4;
+    // When using some networks (seen on 4G), the payload can include chunk metadata
+    // before/after the JSON body (e.g. "1e0" before the first '{').
+    // Keep only the first complete JSON object to avoid parse errors.
+    int jsonStart = payload.indexOf('{');
+    int jsonEnd = payload.lastIndexOf('}');
 
     Serial.print(">>>>>>>> FIRST payload CHAR IS ");
     Serial.print(payload.substring(0, 1));
     Serial.println(" >>>>>>>>>>");
 
-    if (payload.substring(0, 1) != "{") {
-      payload = payload.substring(4, payloadlen);
-      Serial.println("For the moment will just strip off the first 4 chars");
+    if (jsonStart > 0 || jsonEnd < payload.length() - 1) {
+      if (jsonStart >= 0 && jsonEnd > jsonStart) {
+        payload = payload.substring(jsonStart, jsonEnd + 1);
+      }
+      Serial.println("Trimmed payload to JSON envelope");
       ScrollMsg("4G mode", 15);
     }
   } else {
     Serial.println("Error on Weather HTTP request");
+    http.end();
+    return;
   }
   http.end();
 
@@ -862,7 +862,12 @@ void GetWeather() {
   payload.toCharArray(Tjson, payloadlen);
   char* json = Tjson;
 
-  deserializeJson(doc, json);
+  DeserializationError jsonError = deserializeJson(doc, json);
+  if (jsonError) {
+    Serial.print("Weather JSON parse failed: ");
+    Serial.println(jsonError.c_str());
+    return;
+  }
 
   JsonObject main = doc["main"];
   const char* name = doc["name"];

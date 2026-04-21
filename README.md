@@ -2,8 +2,9 @@
 
 This project is an ESP8266-based scrolling weather clock built around MAX7219 LED matrix modules. It connects to Wi-Fi, fetches time via NTP, pulls weather data, and scrolls time, temperature, and custom messages across the display. The firmware is stored in `max72LedNodeMCU_Scroll_Working/max72LedNodeMCU_Scroll_Working.ino`.
 
-## Recent updates (v8.9.14)
+## Recent updates (v8.9.15)
 
+* Incremented the firmware-reported version string to `v8.9.15` for this release.
 * Updated the firmware-reported version string to `v8.9.14`, including the startup display text.
 * Documented MQTT broker/topic integration details in the firmware header comments.
 * Refreshed the configuration portal styling and status messaging.
@@ -12,6 +13,7 @@ This project is an ESP8266-based scrolling weather clock built around MAX7219 LE
 * Improved DST auto-update handling during time syncs.
 * Scrolls the assigned IP address after Wi-Fi connects.
 * Calls out the optional MQTT message queue integration for remote message commands.
+* Hardened weather payload parsing so restart-time API responses with extra transport bytes no longer decode as `0C Wind 0 m/s`.
 
 ## Build
 
