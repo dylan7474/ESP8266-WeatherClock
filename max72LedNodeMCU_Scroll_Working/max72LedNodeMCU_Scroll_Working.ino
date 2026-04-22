@@ -155,7 +155,7 @@ BMP280_DEV bmp280;
 
 MD_Parola P = MD_Parola(HARDWARE_TYPE, CS_PIN, MAX_DEVICES);
 
-String Version = "max72LedNodeMCU_Scroll_Working_v10.9.15";
+String Version = "max72LedNodeMCU_Scroll_Working_v10.9.16";
 float TempScale = 0.78;
 int timezone = 0;
 int dst = 0;  //dst = 0 for GMT , dst = 1 for bst
@@ -172,6 +172,8 @@ const char* ESP_HOST_NAME = "esp-" + ESP.getFlashChipId();
 int bigcount = 0;
 const unsigned long kWiFiReconnectBackoffMs = 30000;
 const unsigned long kWiFiStatusBlinkMs = 500;
+const unsigned long kNtpSyncTimeoutMs = 30000;
+const unsigned long kWeatherHttpTimeoutMs = 10000;
 const int kWiFiStatusLedPin = LED_BUILTIN;
 unsigned long lastWiFiReconnectAttempt = 0;
 unsigned long lastWiFiStatusBlink = 0;
@@ -838,7 +840,12 @@ bool ApplyDstIfNeeded(time_t nowUtc) {
   return true;
 }
 
-void SetTime(void) {
+bool SetTime(void) {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("Skipping time sync: WiFi disconnected");
+    return false;
+  }
+
   // In most cases it's best to use pool.ntp.org to find an NTP server (or 0.pool.ntp.org, 1.pool.ntp.org
   // , etc if you need multiple server names)
   // for list : https://gist.github.com/mutin-sa/eea1c396b1e610a2da1e5550d94b0453
@@ -848,11 +855,20 @@ void SetTime(void) {
   Serial.print("Synchronising Time : ");
 
   nowTime = "";  // have to reset this variable to tell if the time read was seccessful
+  unsigned long syncStart = millis();
 
   while (nowTime.substring(20, 21) != "2")  //Think this check for the year to check if time has been set
   {
+    if (millis() - syncStart >= kNtpSyncTimeoutMs) {
+      Serial.println("\nTime sync timed out");
+      return false;
+    }
     //Serial.println("\nACTUALLY UPDATING THE TIME\n");
     while (!time(nullptr)) {
+      if (millis() - syncStart >= kNtpSyncTimeoutMs) {
+        Serial.println("\nTime sync timed out waiting for NTP");
+        return false;
+      }
       Serial.print(".");
       delay(1000);
     }
@@ -876,9 +892,16 @@ void SetTime(void) {
     Serial.print("Time adjusted for DST: ");
     Serial.println(nowTime);
   }
+  return true;
 }
 
-void GetWeather() {
+bool GetWeather() {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("Skipping weather update: WiFi disconnected");
+    wx3 = "weather unavailable";
+    StoredWeatherDescription = wx3;
+    return false;
+  }
 
   // Connection string should be http://api.openweathermap.org/data/2.5/weather?lat=54.54&lon=-1.08&APPID=c848eb234e72b8e3808ab65d17d05231
   // Should output something like
@@ -892,6 +915,7 @@ void GetWeather() {
   WiFiClientSecure client;
   client.setInsecure();
   HTTPClient http;
+  http.setTimeout(kWeatherHttpTimeoutMs);
   http.begin(client, url);    //Specify the URL
   int httpCode = http.GET();  //Make the request
   if (httpCode > 0) {         //Check for the returning code
@@ -922,7 +946,7 @@ void GetWeather() {
     wx3 = "weather unavailable";
     StoredWeatherDescription = wx3;
     http.end();
-    return;
+    return false;
   }
   http.end();
 
@@ -933,7 +957,7 @@ void GetWeather() {
     Serial.println(jsonError.c_str());
     wx3 = "weather data unavailable";
     StoredWeatherDescription = wx3;
-    return;
+    return false;
   }
 
   int statusCode = 0;
@@ -950,7 +974,7 @@ void GetWeather() {
     Serial.print(statusCode);
     Serial.print(": ");
     Serial.println(wx3);
-    return;
+    return false;
   }
 
   JsonObject main = doc["main"];
@@ -985,6 +1009,7 @@ void GetWeather() {
   Serial.println(wx3);
 
   StoredWeatherDescription = wx3;  //Set this for compatibility
+  return true;
 }
 
 void ScrollMsg(String messageString, int messageSpeed) {
@@ -1146,9 +1171,12 @@ void loop(void) {
   {
     ScrollMsg("15 minute weather update", 30);
     Serial.println("15 minute weather update");
-    connectWifi();
-    //SetTime();
-    GetWeather();
+    if (WiFi.status() != WL_CONNECTED) {
+      MonitorWiFiConnection();
+      Serial.println("Weather update skipped: waiting for WiFi reconnect");
+    } else {
+      GetWeather();
+    }
     PrintMsg(nowTime.substring(10, 16));  //Display Time  May be able to start at 11 (might be a space)
     bigcount = 0;
   }
@@ -1157,8 +1185,12 @@ void loop(void) {
   {
     ScrollMsg("12 Hourly time update", 30);
     Serial.println("12 Hourly time update");
-    connectWifi();
-    SetTime();
+    if (WiFi.status() != WL_CONNECTED) {
+      MonitorWiFiConnection();
+      Serial.println("Time update skipped: waiting for WiFi reconnect");
+    } else {
+      SetTime();
+    }
     //GetWeather();
     PrintMsg(nowTime.substring(10, 16));  //Display Time  May be able to start at 11 (might be a space)
     bigcount = 0;
