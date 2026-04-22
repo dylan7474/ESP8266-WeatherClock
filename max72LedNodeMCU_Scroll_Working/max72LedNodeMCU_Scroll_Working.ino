@@ -124,6 +124,7 @@
 #include <MD_MAX72xx.h>
 #include <SPI.h>
 #include <ESP8266WiFi.h>
+#include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <time.h>
@@ -780,9 +781,10 @@ void GetWeather() {
 
   Serial.println("Getting Weather");
   ScrollMsg("Getting Weather", 15);
-  String url = "http://api.openweathermap.org/data/2.5/weather?lat=" + runtimeConfig.latitude + "&lon=" + runtimeConfig.longitude
+  String url = "https://api.openweathermap.org/data/2.5/weather?lat=" + runtimeConfig.latitude + "&lon=" + runtimeConfig.longitude
                + "&units=metric&APPID=" + OPENWEATHER_API_KEY;
-  WiFiClient client;
+  WiFiClientSecure client;
+  client.setInsecure();
   HTTPClient http;
   http.begin(client, url);    //Specify the URL
   int httpCode = http.GET();  //Make the request
@@ -802,13 +804,19 @@ void GetWeather() {
     Serial.println(" >>>>>>>>>>");
 
     int jsonStart = payload.indexOf('{');
-    if (jsonStart > 0) {
+    if (jsonStart >= 0) {
       payload = payload.substring(jsonStart);
-      Serial.println("Stripped non-JSON response prefix");
-      ScrollMsg("4G mode", 15);
+      if (jsonStart > 0) {
+        Serial.println("Stripped non-JSON response prefix");
+        ScrollMsg("4G mode", 15);
+      }
     }
   } else {
     Serial.println("Error on Weather HTTP request");
+    wx3 = "weather unavailable";
+    StoredWeatherDescription = wx3;
+    http.end();
+    return;
   }
   http.end();
 
@@ -822,16 +830,38 @@ void GetWeather() {
     return;
   }
 
+  int statusCode = 0;
+  if (doc["cod"].is<int>()) {
+    statusCode = doc["cod"].as<int>();
+  } else if (doc["cod"].is<const char*>()) {
+    statusCode = atoi(doc["cod"]);
+  }
+  if (statusCode != 0 && statusCode != 200) {
+    const char* apiError = doc["message"] | "Weather API error";
+    wx3 = String(apiError);
+    StoredWeatherDescription = wx3;
+    Serial.print("Weather API returned code ");
+    Serial.print(statusCode);
+    Serial.print(": ");
+    Serial.println(wx3);
+    return;
+  }
+
   JsonObject main = doc["main"];
   const char* name = doc["name"] | "Unknown";
   wx1 = reinterpret_cast<const char*>(name);
 
-  JsonObject weather_0 = doc["weather"][0];
-  const char* weather_0_description = weather_0["description"] | "No conditions";
+  JsonArray weatherArray = doc["weather"];
+  JsonVariant weather_0 = weatherArray.size() > 0 ? weatherArray[0] : JsonVariant();
+  const char* weather_0_description = weather_0["description"] | weather_0["main"] | "No conditions";
   wx2 = reinterpret_cast<const char*>(weather_0_description);
 
   float wind_speed = doc["wind"]["speed"] | 0.0;
   float main_temp = main["temp"] | 0.0;
+  if (main_temp > 170.0) {
+    // Some API responses can still come back in Kelvin if units are ignored.
+    main_temp = main_temp - 273.15;
+  }
 
   Serial.println(wx1);
   Serial.println(wx2);
