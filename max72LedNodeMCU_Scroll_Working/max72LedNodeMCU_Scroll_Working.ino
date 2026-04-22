@@ -238,6 +238,10 @@ String storedMqttMessage;
 bool storedMqttMessageAvailable = false;
 unsigned long lastMqttReconnectAttempt = 0;
 const size_t kMaxMqttStatusMessages = 8;
+
+String CurrentTimeDisplay();
+void PrintMsg(String messageString, int pauseMs = 2000);
+void FlashTimeSeparator(int flashCount = 2, int flashDelayMs = 120);
 struct MqttStatusMessage {
   String key;
   String value;
@@ -1042,7 +1046,7 @@ void ScrollMsg(String messageString, int messageSpeed) {
   }
 }
 
-void PrintMsg(String messageString, int pauseMs = 2000) {
+void PrintMsg(String messageString, int pauseMs) {
   int messageLen = messageString.length() + 1;
   char message[messageLen];
 
@@ -1068,7 +1072,7 @@ String CurrentTimeDisplay() {
   return " -- --";
 }
 
-void FlashTimeSeparator(int flashCount = 2, int flashDelayMs = 120) {
+void FlashTimeSeparator(int flashCount, int flashDelayMs) {
   String timeWithSeparator = CurrentTimeDisplay();
   String timeWithoutSeparator = timeWithSeparator;
   timeWithoutSeparator.replace(":", " ");
