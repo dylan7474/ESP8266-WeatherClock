@@ -11,6 +11,7 @@ This project is an ESP8266-based scrolling weather clock built around MAX7219 LE
 * Improved DST auto-update handling during time syncs.
 * Scrolls the assigned IP address after Wi-Fi connects.
 * Calls out the optional MQTT message queue integration for remote message commands.
+* Weather requests now use HTTPS and handle API error payloads more explicitly so bad responses do not appear as `Unknown`/`0C`.
 
 ## Build
 
