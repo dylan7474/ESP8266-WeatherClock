@@ -2,9 +2,9 @@
 
 This project is an ESP8266-based scrolling weather clock built around MAX7219 LED matrix modules. It connects to Wi-Fi, fetches time via NTP, pulls weather data, and scrolls time, temperature, and custom messages across the display. The firmware is stored in `max72LedNodeMCU_Scroll_Working/max72LedNodeMCU_Scroll_Working.ino`.
 
-## Recent updates (v10.9.16)
+## Recent updates (v10.9.17)
 
-* Updated firmware version string to `max72LedNodeMCU_Scroll_Working_v10.9.16`.
+* Updated firmware version string to `max72LedNodeMCU_Scroll_Working_v10.9.17`.
 * Hardened periodic weather/time refresh logic so scheduled updates are skipped (instead of blocking) while Wi-Fi is down and resume automatically after reconnect.
 * Added timeout guards for NTP sync and weather HTTP calls to reduce the chance of lockups during temporary network outages (for example router reboots).
 * MQTT queue polling now runs every loop cycle.
@@ -18,6 +18,7 @@ This project is an ESP8266-based scrolling weather clock built around MAX7219 LE
 * Scrolls the assigned IP address after Wi-Fi connects.
 * Calls out the optional MQTT message queue integration for remote message commands.
 * Weather requests now use HTTPS and handle API error payloads more explicitly so bad responses do not appear as `Unknown`/`0C`.
+* The built-in blue Wi-Fi LED now stays off during normal operation and only flashes when Wi-Fi has been disconnected for more than 5 minutes.
 
 ## Build
 
@@ -58,7 +59,7 @@ Open `max72LedNodeMCU_Scroll_Working/max72LedNodeMCU_Scroll_Working.ino` in the 
 * **UK daylight saving**: the clock recalculates BST/GMT in firmware (last Sunday in March/October at 01:00 UTC) and updates the offset without requiring a reboot.
 * **Time sync on boot**: the clock synchronizes time once during startup and applies any DST adjustment during that sync.
 * **IP address on connect**: after Wi-Fi connects, the display scrolls the assigned IP address once so you can find the device on the network.
-* **Wi-Fi stays connected**: the device keeps Wi-Fi in station mode and will auto-reconnect if the connection drops (LED blinks while reconnecting).
+* **Wi-Fi stays connected**: the device keeps Wi-Fi in station mode and will auto-reconnect if the connection drops (the blue LED remains off and starts flashing only after 5 minutes of continuous Wi-Fi outage).
 
 ## MQTT message control (optional)
 
