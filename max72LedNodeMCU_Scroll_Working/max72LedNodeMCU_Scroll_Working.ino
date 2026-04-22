@@ -852,8 +852,11 @@ void GetWeather() {
   wx1 = reinterpret_cast<const char*>(name);
 
   JsonArray weatherArray = doc["weather"];
-  JsonVariant weather_0 = weatherArray.size() > 0 ? weatherArray[0] : JsonVariant();
-  const char* weather_0_description = weather_0["description"] | weather_0["main"] | "No conditions";
+  const char* weather_0_description = "No conditions";
+  if (weatherArray.size() > 0) {
+    JsonObject weather_0 = weatherArray[0];
+    weather_0_description = weather_0["description"] | weather_0["main"] | "No conditions";
+  }
   wx2 = reinterpret_cast<const char*>(weather_0_description);
 
   float wind_speed = doc["wind"]["speed"] | 0.0;
