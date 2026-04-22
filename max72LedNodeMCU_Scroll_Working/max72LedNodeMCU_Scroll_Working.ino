@@ -1,3 +1,7 @@
+// Ver 10.9.15 (22/04/26)
+// MQTT command queue is polled every loop cycle with serial debug feedback
+// Status topics (including battery) are stored and shown on startup + each display cycle
+//
 // Ver 10.9.13 (08/03/25)
 // Documented MQTT integration details (Config.h broker settings and command/state topics)
 //
@@ -151,7 +155,7 @@ BMP280_DEV bmp280;
 
 MD_Parola P = MD_Parola(HARDWARE_TYPE, CS_PIN, MAX_DEVICES);
 
-String Version = "max72LedNodeMCU_Scroll_Working_v10.9.14";
+String Version = "max72LedNodeMCU_Scroll_Working_v10.9.15";
 float TempScale = 0.78;
 int timezone = 0;
 int dst = 0;  //dst = 0 for GMT , dst = 1 for bst
@@ -217,12 +221,46 @@ bool mqttEnabled = false;
 String mqttClientId;
 String mqttTopicBase;
 String mqttCommandTopic;
+String mqttCommandTopicPrefix;
+String mqttCommandTopicWildcard;
 String mqttStateTopic;
 String pendingMqttMessage;
 bool mqttMessagePending = false;
 String storedMqttMessage;
 bool storedMqttMessageAvailable = false;
 unsigned long lastMqttReconnectAttempt = 0;
+const size_t kMaxMqttStatusMessages = 8;
+struct MqttStatusMessage {
+  String key;
+  String value;
+};
+MqttStatusMessage mqttStatusMessages[kMaxMqttStatusMessages];
+size_t mqttStatusMessageCount = 0;
+
+void UpsertMqttStatusMessage(const String& key, const String& value) {
+  for (size_t i = 0; i < mqttStatusMessageCount; i++) {
+    if (mqttStatusMessages[i].key.equalsIgnoreCase(key)) {
+      mqttStatusMessages[i].value = value;
+      return;
+    }
+  }
+  if (mqttStatusMessageCount >= kMaxMqttStatusMessages) {
+    for (size_t i = 1; i < mqttStatusMessageCount; i++) {
+      mqttStatusMessages[i - 1] = mqttStatusMessages[i];
+    }
+    mqttStatusMessageCount--;
+  }
+  mqttStatusMessages[mqttStatusMessageCount].key = key;
+  mqttStatusMessages[mqttStatusMessageCount].value = value;
+  mqttStatusMessageCount++;
+}
+
+String BuildMqttStatusDisplayMessage(const String& key, const String& value) {
+  if (key.equalsIgnoreCase("message")) {
+    return value;
+  }
+  return key + " " + value;
+}
 
 struct CustomMessageStore {
   MessageEntry* entries = nullptr;
@@ -274,7 +312,8 @@ bool IsMqttConfigured() {
 }
 
 void HandleMqttMessage(char* topic, byte* payloadBytes, unsigned int length) {
-  if (!mqttCommandTopic.equals(topic)) {
+  String topicString = String(topic);
+  if (!topicString.startsWith(mqttCommandTopicPrefix)) {
     return;
   }
 
@@ -287,8 +326,17 @@ void HandleMqttMessage(char* topic, byte* payloadBytes, unsigned int length) {
   if (payloadString.length() == 0) {
     return;
   }
-  pendingMqttMessage = payloadString;
+  String statusKey = topicString.substring(mqttCommandTopicPrefix.length());
+  if (statusKey.length() == 0) {
+    statusKey = "message";
+  }
+  UpsertMqttStatusMessage(statusKey, payloadString);
+  pendingMqttMessage = BuildMqttStatusDisplayMessage(statusKey, payloadString);
   mqttMessagePending = true;
+  Serial.print("MQTT status update received [");
+  Serial.print(statusKey);
+  Serial.print("] ");
+  Serial.println(payloadString);
 }
 
 void SetupMqtt() {
@@ -299,6 +347,8 @@ void SetupMqtt() {
   mqttClientId = String("weatherclock-") + String(ESP.getChipId(), HEX);
   mqttTopicBase = String(MQTT_TOPIC_PREFIX) + "/" + String(ESP.getChipId(), HEX);
   mqttCommandTopic = mqttTopicBase + "/command/message";
+  mqttCommandTopicPrefix = mqttTopicBase + "/command/";
+  mqttCommandTopicWildcard = mqttTopicBase + "/command/#";
   mqttStateTopic = mqttTopicBase + "/state/message";
 
   mqttClient.setServer(MQTT_BROKER, MQTT_PORT);
@@ -320,8 +370,18 @@ void EnsureMqttConnection() {
     return;
   }
   lastMqttReconnectAttempt = now;
+  Serial.print("Attempting MQTT connection to ");
+  Serial.print(MQTT_BROKER);
+  Serial.print(":");
+  Serial.println(MQTT_PORT);
   if (mqttClient.connect(mqttClientId.c_str())) {
-    mqttClient.subscribe(mqttCommandTopic.c_str());
+    Serial.print("MQTT connected. Subscribing to ");
+    Serial.println(mqttCommandTopicWildcard);
+    mqttClient.subscribe(mqttCommandTopicWildcard.c_str());
+    PublishMqttState("mqtt connected");
+  } else {
+    Serial.print("MQTT connect failed, rc=");
+    Serial.println(mqttClient.state());
   }
 }
 
@@ -329,7 +389,53 @@ void PublishMqttState(const String& message) {
   if (!mqttEnabled || !mqttClient.connected()) {
     return;
   }
+  Serial.print("MQTT state publish: ");
+  Serial.println(message);
   mqttClient.publish(mqttStateTopic.c_str(), message.c_str(), true);
+}
+
+void PollMqttQueue() {
+  EnsureMqttConnection();
+  if (mqttEnabled) {
+    mqttClient.loop();
+  }
+}
+
+void DisplayStoredMqttStatuses() {
+  if (!storedMqttMessageAvailable) {
+    return;
+  }
+
+  bool displayedBattery = false;
+  for (size_t i = 0; i < mqttStatusMessageCount; i++) {
+    if (mqttStatusMessages[i].key.equalsIgnoreCase("battery")) {
+      String batteryMessage = BuildMqttStatusDisplayMessage(mqttStatusMessages[i].key, mqttStatusMessages[i].value);
+      Serial.print("Displaying MQTT status: ");
+      Serial.println(batteryMessage);
+      ScrollMsg(batteryMessage, 20);
+      displayedBattery = true;
+      break;
+    }
+  }
+
+  if (!displayedBattery) {
+    Serial.print("Displaying MQTT status: ");
+    Serial.println(storedMqttMessage);
+    ScrollMsg(storedMqttMessage, 20);
+  }
+
+  for (size_t i = 0; i < mqttStatusMessageCount; i++) {
+    if (mqttStatusMessages[i].key.equalsIgnoreCase("battery")) {
+      continue;
+    }
+    String statusMessage = BuildMqttStatusDisplayMessage(mqttStatusMessages[i].key, mqttStatusMessages[i].value);
+    if (statusMessage == storedMqttMessage) {
+      continue;
+    }
+    Serial.print("Displaying MQTT status: ");
+    Serial.println(statusMessage);
+    ScrollMsg(statusMessage, 20);
+  }
 }
 
 bool LoadRuntimeConfig() {
@@ -940,8 +1046,20 @@ void setup(void) {
   connectWifi();
   SetupMqtt();
   EnsureMqttConnection();
+  unsigned long mqttStartupPollStart = millis();
+  while (millis() - mqttStartupPollStart < 2000) {
+    PollMqttQueue();
+    if (mqttMessagePending) {
+      storedMqttMessage = pendingMqttMessage;
+      storedMqttMessageAvailable = true;
+      PublishMqttState(storedMqttMessage);
+      mqttMessagePending = false;
+    }
+    delay(50);
+  }
   SetTime();  //sync time and apply dst if needed
   GetWeather();
+  DisplayStoredMqttStatuses();
   StartConfigPortalServer();
 
   // Added for Version 10.4
@@ -966,10 +1084,7 @@ void loop(void) {
   if (configServerRunning) {
     configServer.handleClient();
   }
-  EnsureMqttConnection();
-  if (mqttEnabled) {
-    mqttClient.loop();
-  }
+  PollMqttQueue();
   if (mqttMessagePending) {
     storedMqttMessage = pendingMqttMessage;
     storedMqttMessageAvailable = true;
@@ -1007,9 +1122,7 @@ void loop(void) {
     //PrintMsg(nowTime.substring(10,16));                          //Display Time
 
     //Put some code to display extra messages here
-    if (storedMqttMessageAvailable) {
-      ScrollMsg(storedMqttMessage, 20);
-    }
+    DisplayStoredMqttStatuses();
 
     int count = 0;
 

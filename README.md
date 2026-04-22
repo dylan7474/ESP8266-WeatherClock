@@ -2,8 +2,12 @@
 
 This project is an ESP8266-based scrolling weather clock built around MAX7219 LED matrix modules. It connects to Wi-Fi, fetches time via NTP, pulls weather data, and scrolls time, temperature, and custom messages across the display. The firmware is stored in `max72LedNodeMCU_Scroll_Working/max72LedNodeMCU_Scroll_Working.ino`.
 
-## Recent updates (v10.9.13)
+## Recent updates (v10.9.15)
 
+* Updated firmware version string to `max72LedNodeMCU_Scroll_Working_v10.9.15`.
+* MQTT queue polling now runs every loop cycle.
+* MQTT status topics (including battery) are captured and shown at startup and during each display cycle.
+* Added additional serial debug output for MQTT broker connection, subscriptions, incoming status messages, and state publishes.
 * Documented MQTT broker/topic integration details in the firmware header comments.
 * Refreshed the configuration portal styling and status messaging.
 * Added editable custom date messages in the configuration portal (saved in `config.json`).
@@ -69,7 +73,7 @@ When enabled, the device uses its chip ID to build topics:
 * **Command topic:** `<MQTT_TOPIC_PREFIX>/<chipid>/command/message`
 * **State topic:** `<MQTT_TOPIC_PREFIX>/<chipid>/state/message` (retained)
 
-Publish a plain text payload to the command topic and the clock will store it, then scroll it after each weather update (similar to the custom date messages). The latest stored message is published to the state topic so Home Assistant or other clients can track it.
+Publish plain text payloads to status topics under the command root (for example `<MQTT_TOPIC_PREFIX>/<chipid>/command/battery` or `/command/message`). The clock polls MQTT every loop cycle, stores the latest value for each status key, and scrolls battery/status values at startup and after each weather display cycle. The latest processed status is published to the state topic so Home Assistant or other clients can track it.
 
 ## Configuration portal
 
