@@ -797,15 +797,14 @@ void GetWeather() {
     // Also seen 1e3 so looks like the number changes
     // need to be able to skip over this if the start of the payload is not a {
 
-    int payloadlen = payload.length() - 4;
-
     Serial.print(">>>>>>>> FIRST payload CHAR IS ");
     Serial.print(payload.substring(0, 1));
     Serial.println(" >>>>>>>>>>");
 
-    if (payload.substring(0, 1) != "{") {
-      payload = payload.substring(4, payloadlen);
-      Serial.println("For the moment will just strip off the first 4 chars");
+    int jsonStart = payload.indexOf('{');
+    if (jsonStart > 0) {
+      payload = payload.substring(jsonStart);
+      Serial.println("Stripped non-JSON response prefix");
       ScrollMsg("4G mode", 15);
     }
   } else {
@@ -813,30 +812,26 @@ void GetWeather() {
   }
   http.end();
 
-  const size_t capacity = JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(0) + JSON_OBJECT_SIZE(1) + 2 * JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(4) + 2 * JSON_OBJECT_SIZE(5) + JSON_OBJECT_SIZE(14) + 270;
-  DynamicJsonDocument doc(capacity);
-
-  int payloadlen = payload.length() + 1;
-
-  char Tjson[payloadlen];
-  payload.toCharArray(Tjson, payloadlen);
-  char* json = Tjson;
-
-  deserializeJson(doc, json);
+  DynamicJsonDocument doc(2048);
+  DeserializationError jsonError = deserializeJson(doc, payload);
+  if (jsonError) {
+    Serial.print("Weather JSON parse failed: ");
+    Serial.println(jsonError.c_str());
+    wx3 = "weather data unavailable";
+    StoredWeatherDescription = wx3;
+    return;
+  }
 
   JsonObject main = doc["main"];
-  const char* name = doc["name"];
+  const char* name = doc["name"] | "Unknown";
   wx1 = reinterpret_cast<const char*>(name);
 
   JsonObject weather_0 = doc["weather"][0];
-  int weather_0_id = weather_0["id"];                            // 500
-  const char* weather_0_main = weather_0["main"];                // "Rain"
-  const char* weather_0_description = weather_0["description"];  // "light rain"
-  const char* weather_0_icon = weather_0["icon"];                // "10d"];
+  const char* weather_0_description = weather_0["description"] | "No conditions";
   wx2 = reinterpret_cast<const char*>(weather_0_description);
 
-  float wind_speed = doc["wind"]["speed"];  // 1.5
-  float main_temp = main["temp"];
+  float wind_speed = doc["wind"]["speed"] | 0.0;
+  float main_temp = main["temp"] | 0.0;
 
   Serial.println(wx1);
   Serial.println(wx2);
