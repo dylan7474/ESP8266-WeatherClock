@@ -159,7 +159,7 @@ BMP280_DEV bmp280;
 
 MD_Parola P = MD_Parola(HARDWARE_TYPE, CS_PIN, MAX_DEVICES);
 
-String Version = "max72LedNodeMCU_Scroll_Working_v10.9.18";
+String Version = "max72LedNodeMCU_Scroll_Working_v10.9.19";
 float TempScale = 0.78;
 int timezone = 0;
 int dst = 0;  //dst = 0 for GMT , dst = 1 for bst
@@ -173,18 +173,25 @@ String StoredWeatherTemperature;
 
 const char* ESP_HOST_NAME = "esp-" + ESP.getFlashChipId();
 
-int bigcount = 0;
 const unsigned long kWiFiReconnectBackoffMs = 30000;
 const unsigned long kWiFiStatusBlinkMs = 500;
 const unsigned long kWiFiStatusFlashDelayMs = 300000;
 const unsigned long kNtpSyncTimeoutMs = 30000;
 const unsigned long kWeatherHttpTimeoutMs = 10000;
+const unsigned long kDisplayCycleIntervalMs = 20000;
+const unsigned long kWeatherUpdateIntervalMs = 180000;
+const unsigned long kTimeSyncIntervalMs = 43200000;
+const unsigned long kDstCheckIntervalMs = 60000;
 const int kWiFiStatusLedPin = LED_BUILTIN;
 unsigned long lastWiFiReconnectAttempt = 0;
 unsigned long lastWiFiStatusBlink = 0;
 unsigned long wifiDisconnectedSince = 0;
 bool wifiStatusLedOn = false;
 const unsigned long kMqttReconnectBackoffMs = 5000;
+unsigned long lastDisplayCycleAtMs = 0;
+unsigned long lastWeatherUpdateAtMs = 0;
+unsigned long lastTimeSyncAtMs = 0;
+unsigned long lastDstCheckAtMs = 0;
 
 String payload;
 boolean StartupState = true;
@@ -1130,6 +1137,11 @@ void setup(void) {
   SetTime();  //sync time and apply dst if needed
   GetWeather();
   DisplayStoredMqttStatuses();
+  unsigned long startupMillis = millis();
+  lastDisplayCycleAtMs = startupMillis;
+  lastWeatherUpdateAtMs = startupMillis;
+  lastTimeSyncAtMs = startupMillis;
+  lastDstCheckAtMs = startupMillis;
   StartConfigPortalServer();
 
   // Added for Version 10.4
@@ -1149,6 +1161,7 @@ void setup(void) {
 }
 
 void loop(void) {
+  unsigned long nowMs = millis();
   MonitorWiFiConnection();
   UpdateWiFiStatusIndicator();
   if (configServerRunning) {
@@ -1177,8 +1190,9 @@ void loop(void) {
     oldNowTime = nowTime.substring(10, 16);
   }
 
-  if ((bigcount % 20) == 0)  // Display Weather Data every 20 seconds (was 60)
+  if (nowMs - lastDisplayCycleAtMs >= kDisplayCycleIntervalMs)  // Display Weather Data every 20 seconds (was 60)
   {
+    lastDisplayCycleAtMs = nowMs;
 
     // Added for Version 10.4
     while (!bmp280.getMeasurements(temperature, pressure, altitude))  // Check if the measurement is complete
@@ -1212,10 +1226,11 @@ void loop(void) {
     PrintMsg(nowTime.substring(10, 16));  //Display Time  May be able to start at 11 (might be a space)
   }
 
-  if (bigcount == 900)  //900 = every 15 mins - update weather ONLY
+  if (nowMs - lastWeatherUpdateAtMs >= kWeatherUpdateIntervalMs)  //every 3 mins - update weather ONLY
   {
+    lastWeatherUpdateAtMs = nowMs;
     FlashTimeSeparator(2);
-    Serial.println("15 minute weather update");
+    Serial.println("3 minute weather update");
     if (WiFi.status() != WL_CONNECTED) {
       MonitorWiFiConnection();
       Serial.println("Weather update skipped: waiting for WiFi reconnect");
@@ -1223,11 +1238,11 @@ void loop(void) {
       GetWeather();
     }
     PrintMsg(nowTime.substring(10, 16));  //Display Time  May be able to start at 11 (might be a space)
-    bigcount = 0;
   }
 
-  if (bigcount == 43200)  //3600 = 1 hour - update time ONLY 43200 = 12 hours
+  if (nowMs - lastTimeSyncAtMs >= kTimeSyncIntervalMs)  //43200000 = 12 hours
   {
+    lastTimeSyncAtMs = nowMs;
     FlashTimeSeparator(2);
     Serial.println("12 Hourly time update");
     if (WiFi.status() != WL_CONNECTED) {
@@ -1238,10 +1253,10 @@ void loop(void) {
     }
     //GetWeather();
     PrintMsg(nowTime.substring(10, 16));  //Display Time  May be able to start at 11 (might be a space)
-    bigcount = 0;
   }
 
-  if ((bigcount % 60) == 0) {
+  if (nowMs - lastDstCheckAtMs >= kDstCheckIntervalMs) {
+    lastDstCheckAtMs = nowMs;
     time_t nowUtc = time(nullptr);
     ApplyDstIfNeeded(nowUtc);
   }
@@ -1250,6 +1265,5 @@ void loop(void) {
   nowTime = ctime(&now);
   //Serial.print("NOW TIME = ");
   //Serial.println(nowTime);
-  bigcount++;
   delay(1000);
 }
