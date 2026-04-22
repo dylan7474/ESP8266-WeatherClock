@@ -1,3 +1,7 @@
+// Ver 10.9.18 (22/04/26)
+// Keep the clock visible during scheduled weather/time sync activity by flashing the time separator
+// instead of scrolling "Getting Weather" / "Synchronising Time" status messages
+//
 // Ver 10.9.15 (22/04/26)
 // MQTT command queue is polled every loop cycle with serial debug feedback
 // Status topics (including battery) are stored and shown on startup + each display cycle
@@ -155,7 +159,7 @@ BMP280_DEV bmp280;
 
 MD_Parola P = MD_Parola(HARDWARE_TYPE, CS_PIN, MAX_DEVICES);
 
-String Version = "max72LedNodeMCU_Scroll_Working_v10.9.17";
+String Version = "max72LedNodeMCU_Scroll_Working_v10.9.18";
 float TempScale = 0.78;
 int timezone = 0;
 int dst = 0;  //dst = 0 for GMT , dst = 1 for bst
@@ -889,7 +893,7 @@ bool SetTime(void) {
       delay(1000);
     }
     Serial.print(".");
-    ScrollMsg("Synchronising Time", 15);
+    FlashTimeSeparator(1);
     time_t now = time(nullptr);
 
     nowTime = ctime(&now);
@@ -920,7 +924,7 @@ bool GetWeather() {
   }
 
   Serial.println("Getting Weather");
-  ScrollMsg("Getting Weather", 15);
+  FlashTimeSeparator(2);
   String url = "https://api.openweathermap.org/data/2.5/weather?lat=" + runtimeConfig.latitude + "&lon=" + runtimeConfig.longitude
                + "&units=metric&APPID=" + OPENWEATHER_API_KEY;
   WiFiClientSecure client;
@@ -1038,16 +1042,42 @@ void ScrollMsg(String messageString, int messageSpeed) {
   }
 }
 
-void PrintMsg(String messageString) {
+void PrintMsg(String messageString, int pauseMs = 2000) {
   int messageLen = messageString.length() + 1;
   char message[messageLen];
 
   messageString.toCharArray(message, messageLen);  //Have to convert string to char array for display
   P.displayClear();
   P.displayReset();
-  P.displayText(message, PA_CENTER, 15, 2000, PA_PRINT, PA_NO_EFFECT);
+  P.displayText(message, PA_CENTER, 15, pauseMs, PA_PRINT, PA_NO_EFFECT);
   while (!P.displayAnimate()) {
     delay(1);
+  }
+}
+
+String CurrentTimeDisplay() {
+  if (nowTime.length() >= 16) {
+    return nowTime.substring(10, 16);
+  }
+
+  time_t now = time(nullptr);
+  String current = ctime(&now);
+  if (current.length() >= 16) {
+    return current.substring(10, 16);
+  }
+  return " -- --";
+}
+
+void FlashTimeSeparator(int flashCount = 2, int flashDelayMs = 120) {
+  String timeWithSeparator = CurrentTimeDisplay();
+  String timeWithoutSeparator = timeWithSeparator;
+  timeWithoutSeparator.replace(":", " ");
+
+  for (int i = 0; i < flashCount; i++) {
+    PrintMsg(timeWithoutSeparator, 0);
+    delay(flashDelayMs);
+    PrintMsg(timeWithSeparator, 0);
+    delay(flashDelayMs);
   }
 }
 
@@ -1180,7 +1210,7 @@ void loop(void) {
 
   if (bigcount == 900)  //900 = every 15 mins - update weather ONLY
   {
-    ScrollMsg("15 minute weather update", 30);
+    FlashTimeSeparator(2);
     Serial.println("15 minute weather update");
     if (WiFi.status() != WL_CONNECTED) {
       MonitorWiFiConnection();
@@ -1194,7 +1224,7 @@ void loop(void) {
 
   if (bigcount == 43200)  //3600 = 1 hour - update time ONLY 43200 = 12 hours
   {
-    ScrollMsg("12 Hourly time update", 30);
+    FlashTimeSeparator(2);
     Serial.println("12 Hourly time update");
     if (WiFi.status() != WL_CONNECTED) {
       MonitorWiFiConnection();
