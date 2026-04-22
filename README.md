@@ -89,3 +89,15 @@ When the clock is connected to your network, the same configuration portal is av
 Custom date messages are entered one per line using the format `Mon DD | Message` (for example `Feb 14 | Happy Valentines Day`). Leave the list empty to continue using the selected preset in `MessagePresets.h`.
 
 The portal also displays the device chip ID along with the MQTT command/state topics built from it, which you can copy into Home Assistant or other MQTT clients.
+
+## Roadmap
+
+Suggested improvements for future versions:
+
+* **Web UI enhancements:** add form validation, clearer save/restart feedback, and mobile-friendly layout refinements in the configuration portal.
+* **Weather resiliency:** support a secondary weather provider fallback and cache the last successful forecast with an on-screen "stale data" indicator.
+* **Time/location usability:** add a searchable city lookup in the portal so latitude/longitude does not need to be entered manually.
+* **Display personalization:** allow runtime brightness schedules, animation speed controls, and per-message duration settings from the portal or MQTT.
+* **MQTT/Home Assistant integration:** provide optional auto-discovery topics and richer structured state payloads (JSON) for easier dashboard setup.
+* **Diagnostics & updates:** add a lightweight diagnostics page (Wi-Fi RSSI, uptime, heap, last sync times) and optional OTA update workflow documentation.
+
