@@ -155,7 +155,7 @@ BMP280_DEV bmp280;
 
 MD_Parola P = MD_Parola(HARDWARE_TYPE, CS_PIN, MAX_DEVICES);
 
-String Version = "max72LedNodeMCU_Scroll_Working_v10.9.16";
+String Version = "max72LedNodeMCU_Scroll_Working_v10.9.17";
 float TempScale = 0.78;
 int timezone = 0;
 int dst = 0;  //dst = 0 for GMT , dst = 1 for bst
@@ -172,11 +172,13 @@ const char* ESP_HOST_NAME = "esp-" + ESP.getFlashChipId();
 int bigcount = 0;
 const unsigned long kWiFiReconnectBackoffMs = 30000;
 const unsigned long kWiFiStatusBlinkMs = 500;
+const unsigned long kWiFiStatusFlashDelayMs = 300000;
 const unsigned long kNtpSyncTimeoutMs = 30000;
 const unsigned long kWeatherHttpTimeoutMs = 10000;
 const int kWiFiStatusLedPin = LED_BUILTIN;
 unsigned long lastWiFiReconnectAttempt = 0;
 unsigned long lastWiFiStatusBlink = 0;
+unsigned long wifiDisconnectedSince = 0;
 bool wifiStatusLedOn = false;
 const unsigned long kMqttReconnectBackoffMs = 5000;
 
@@ -743,12 +745,26 @@ void MonitorWiFiConnection() {
 
 void UpdateWiFiStatusIndicator() {
   if (WiFi.status() == WL_CONNECTED) {
-    digitalWrite(kWiFiStatusLedPin, LOW);
-    wifiStatusLedOn = true;
+    wifiDisconnectedSince = 0;
+    wifiStatusLedOn = false;
+    digitalWrite(kWiFiStatusLedPin, HIGH);
     return;
   }
 
   unsigned long now = millis();
+  if (wifiDisconnectedSince == 0) {
+    wifiDisconnectedSince = now;
+    wifiStatusLedOn = false;
+    digitalWrite(kWiFiStatusLedPin, HIGH);
+    return;
+  }
+
+  if (now - wifiDisconnectedSince < kWiFiStatusFlashDelayMs) {
+    wifiStatusLedOn = false;
+    digitalWrite(kWiFiStatusLedPin, HIGH);
+    return;
+  }
+
   if (now - lastWiFiStatusBlink >= kWiFiStatusBlinkMs) {
     lastWiFiStatusBlink = now;
     wifiStatusLedOn = !wifiStatusLedOn;
