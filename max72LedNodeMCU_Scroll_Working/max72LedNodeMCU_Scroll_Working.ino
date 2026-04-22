@@ -179,7 +179,7 @@ const unsigned long kWiFiStatusFlashDelayMs = 300000;
 const unsigned long kNtpSyncTimeoutMs = 30000;
 const unsigned long kWeatherHttpTimeoutMs = 10000;
 const unsigned long kDisplayCycleIntervalMs = 20000;
-const unsigned long kWeatherUpdateIntervalMs = 180000;
+const unsigned long kWeatherUpdateIntervalMs = 900000;
 const unsigned long kTimeSyncIntervalMs = 43200000;
 const unsigned long kDstCheckIntervalMs = 60000;
 const int kWiFiStatusLedPin = LED_BUILTIN;
@@ -1226,11 +1226,11 @@ void loop(void) {
     PrintMsg(nowTime.substring(10, 16));  //Display Time  May be able to start at 11 (might be a space)
   }
 
-  if (nowMs - lastWeatherUpdateAtMs >= kWeatherUpdateIntervalMs)  //every 3 mins - update weather ONLY
+  if (nowMs - lastWeatherUpdateAtMs >= kWeatherUpdateIntervalMs)  //every 15 mins - update weather ONLY
   {
     lastWeatherUpdateAtMs = nowMs;
     FlashTimeSeparator(2);
-    Serial.println("3 minute weather update");
+    Serial.println("15 minute weather update");
     if (WiFi.status() != WL_CONNECTED) {
       MonitorWiFiConnection();
       Serial.println("Weather update skipped: waiting for WiFi reconnect");

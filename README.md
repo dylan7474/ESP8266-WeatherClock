@@ -5,7 +5,7 @@ This project is an ESP8266-based scrolling weather clock built around MAX7219 LE
 ## Recent updates (v10.9.19)
 
 * Updated firmware version string to `max72LedNodeMCU_Scroll_Working_v10.9.19`.
-* Temporarily reduced periodic weather refresh interval to 3 minutes to speed up live validation/testing cycles.
+* Set periodic weather refresh interval to 15 minutes for normal runtime behavior.
 * During weather refreshes and time synchronization cycles, the clock now stays on the time display and flashes the `:` separator instead of scrolling update-status text.
 * Hardened periodic weather/time refresh logic so scheduled updates are skipped (instead of blocking) while Wi-Fi is down and resume automatically after reconnect.
 * Switched periodic weather/time/DST scheduling from loop counters to `millis()` intervals so weather refreshes are based on elapsed time even when scroll/display routines block.
